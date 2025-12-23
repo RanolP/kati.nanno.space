@@ -1,0 +1,20 @@
+{
+  "name": "crawler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "packageManager": "pnpm@10.26.0",
+  "devDependencies": {
+    "@optique/core": "^0.8.2",
+    "@optique/run": "^0.8.2",
+    "@types/node": "^24.10.4",
+    "cheerio": "^1.1.2",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "ky": "^1.14.1",
+    "valibot": "^1.2.0"
+  }
+}

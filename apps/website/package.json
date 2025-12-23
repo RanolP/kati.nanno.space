@@ -1,0 +1,25 @@
+{
+  "name": "website",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.ts",
+    "build": "tsc -b && vite build"
+  },
+  "dependencies": {
+    "@solidjs/router": "^0.15.4",
+    "solid-js": "^1.9.10"
+  },
+  "devDependencies": {
+    "@hono/node-server": "^1.19.7",
+    "@hono/vite-dev-server": "^0.23.0",
+    "@types/node": "^24.10.4",
+    "hono": "^4.11.1",
+    "soonloh": "^0.4.4",
+    "typescript": "catalog:",
+    "unplugin-pick": "https://pkg.pr.new/RanolP/npm-packages/unplugin-pick@34",
+    "vite": "npm:rolldown-vite@7.2.5",
+    "vite-plugin-solid": "^2.11.10"
+  }
+}

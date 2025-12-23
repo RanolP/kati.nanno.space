@@ -1,0 +1,12 @@
+{
+  "name": "workspace",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -F=website dev"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:rolldown-vite@7.2.5"
+    }
+  }
+}

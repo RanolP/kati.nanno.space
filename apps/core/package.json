@@ -1,0 +1,12 @@
+{
+  "name": "core",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "packageManager": "pnpm@10.26.0",
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

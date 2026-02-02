@@ -6,6 +6,8 @@
   "scripts": {
     "check:lint": "oxlint",
     "check:type": "tsc --noEmit",
-    "check:fmt": "oxfmt --check"
+    "check:fmt": "oxfmt --check",
+    "fix:lint": "oxlint --fix",
+    "fix:fmt": "oxfmt"
   }
 }

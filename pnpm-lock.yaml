@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@types/node':
+      specifier: ^25.2.0
+      version: 25.2.0
     oxfmt:
       specifier: ^0.28.0
       version: 0.28.0
@@ -47,6 +50,9 @@ importers:
 
   apps/crawler:
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.2.0
       valibot:
         specifier: 'catalog:'
         version: 1.2.0(typescript@5.9.3)

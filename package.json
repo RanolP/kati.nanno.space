@@ -8,7 +8,9 @@
     "check": "turbo run check",
     "check:lint": "turbo run check:lint",
     "check:type": "turbo run check:type",
-    "check:fmt": "turbo run check:fmt"
+    "check:fmt": "turbo run check:fmt",
+    "fix:lint": "turbo run fix:lint",
+    "fix:fmt": "turbo run fix:fmt"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.1",

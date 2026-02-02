@@ -30,7 +30,13 @@
     "curly": "off",
     "sort-keys": "off",
     "no-continue": "off",
-    "no-negated-condition": "off"
+    "no-negated-condition": "off",
+    "no-await-in-loop": "off",
+    "no-loop-func": "off",
+    "no-ternary": "off",
+    "no-promise-executor-return": "off",
+    "max-lines-per-function": "off",
+    "promise/avoid-new": "off"
   },
   "ignorePatterns": ["dist/**"]
 }

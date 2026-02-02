@@ -21,6 +21,14 @@
     "check:fmt": {
       "inputs": ["**/*.{js,ts,jsx,tsx,json,css,html}"]
     },
+    "fix:lint": {
+      "inputs": ["**/*.{js,ts,jsx,tsx}"],
+      "cache": false
+    },
+    "fix:fmt": {
+      "inputs": ["**/*.{js,ts,jsx,tsx,json,css,html}"],
+      "cache": false
+    },
     "check:type": {
       "dependsOn": ["^check:type"],
       "inputs": ["**/*.{ts,tsx}", "tsconfig*.json"],

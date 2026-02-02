@@ -4,5 +4,6 @@ packages:
 catalog:
   oxfmt: ^0.28.0
   oxlint: ^1.43.0
+  "@types/node": ^25.2.0
   typescript: ^5.8.3
   valibot: ^1.2.0

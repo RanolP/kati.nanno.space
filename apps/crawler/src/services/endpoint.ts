@@ -23,6 +23,7 @@ export interface ProgressEvent {
 export type ProgressHandler = (event: ProgressEvent) => void;
 
 export interface Fetcher {
+  fetch<O>(endpoint: Endpoint<void, O>, onProgress?: ProgressHandler): Promise<O>;
   fetch<I, O>(endpoint: Endpoint<I, O>, input: I, onProgress?: ProgressHandler): Promise<O>;
 }
 

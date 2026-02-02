@@ -24,9 +24,22 @@ export const scalar = {
     schema: v.boolean(),
   }),
 
-  enum: <const T extends string>(values: readonly [T, ...T[]]): ScalarModel<T> => ({
+  enum: <const T extends Record<string, string>>(enumObject: T): ScalarModel<T[keyof T]> => ({
     kind: "scalar",
-    schema: v.picklist(values),
+    schema: v.enum(enumObject) as unknown as v.GenericSchema<T[keyof T]>,
+  }),
+
+  nullable: <V>(inner: ScalarModel<V>): ScalarModel<V | null> => ({
+    kind: "scalar",
+    schema: v.nullable(inner.schema) as unknown as v.GenericSchema<V | null>,
+  }),
+
+  simpleSet: <V>(inner: ScalarModel<V>): ScalarModel<V[]> => ({
+    kind: "scalar",
+    schema: v.pipe(
+      v.array(inner.schema),
+      v.transform((items) => [...items].toSorted() as V[]),
+    ) as unknown as v.GenericSchema<V[]>,
   }),
 };
 

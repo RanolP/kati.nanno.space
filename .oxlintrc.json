@@ -40,7 +40,8 @@
     "import/no-nodejs-modules": "off",
     "no-duplicate-imports": ["warn", { "allowSeparateTypeImports": true }],
     "import/max-dependencies": "off",
-    "unicorn/no-immediate-mutation": "off"
+    "unicorn/no-immediate-mutation": "off",
+    "no-nested-ternary": "off"
   },
   "ignorePatterns": ["dist/**"]
 }

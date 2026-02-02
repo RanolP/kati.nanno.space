@@ -9,7 +9,14 @@ export interface ActionEntry {
 
 export type ActionStatus = "pending" | "running" | "done" | "error";
 
+export interface StepState {
+  name: string;
+  status: ActionStatus;
+  error?: unknown;
+}
+
 export interface ActionState {
   status: ActionStatus;
-  message?: string | undefined;
+  steps: StepState[];
+  error?: unknown;
 }

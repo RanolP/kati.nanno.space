@@ -123,10 +123,7 @@ const EventDetailSchema = v.object({
 });
 
 /** GET /event/info/detail/:id — 행사 상세 */
-export const eventDetail = defineIllustarEndpoint<
-  { id: number },
-  v.InferOutput<typeof EventDetailSchema>
->({
+export const eventDetail = defineIllustarEndpoint({
   path: "/event/info/detail/:id",
   schema: EventDetailSchema,
 });
@@ -223,6 +220,7 @@ const CircleListSchema = v.object({
 
 /** GET /circle?event_id&page&row_per_page — 서클 목록 (페이지네이션) */
 export const circleList = defineIllustarEndpoint<
+  "/circle",
   { event_id: number; page: number; row_per_page: number },
   v.InferOutput<typeof CircleListSchema>
 >({
@@ -267,6 +265,7 @@ const ConcertListSchema = v.object({
 
 /** GET /concert?page&row_per_page — 공연 목록 (페이지네이션) */
 export const concertList = defineIllustarEndpoint<
+  "/concert",
   { page: number; row_per_page: number },
   v.InferOutput<typeof ConcertListSchema>
 >({

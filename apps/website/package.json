@@ -1,0 +1,11 @@
+{
+  "name": "@kati/website",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:lint": "oxlint",
+    "check:type": "tsc --noEmit",
+    "check:fmt": "oxfmt --check"
+  }
+}

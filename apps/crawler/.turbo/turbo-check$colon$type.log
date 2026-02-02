@@ -1,0 +1,4 @@
+
+> @kati/crawler@0.0.0 check:type /home/ranolp/Projects/RanolP/kati.nanno.space/apps/crawler
+> tsc --noEmit
+

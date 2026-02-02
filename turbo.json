@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "crawl": {
+      "cache": false
+    },
+    "check": {
+      "dependsOn": ["check:lint", "check:type", "check:fmt"]
+    },
+    "check:lint": {
+      "inputs": ["**/*.{js,ts,jsx,tsx}"]
+    },
+    "check:fmt": {
+      "inputs": ["**/*.{js,ts,jsx,tsx,json,css,html}"]
+    },
+    "check:type": {
+      "dependsOn": ["^check:type"],
+      "inputs": ["**/*.{ts,tsx}", "tsconfig*.json"],
+      "outputs": ["*.tsbuildinfo"]
+    }
+  }
+}

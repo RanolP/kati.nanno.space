@@ -1,0 +1,22 @@
+{
+  "name": "kati",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.4.1",
+  "scripts": {
+    "prepare": "lefthook install",
+    "check": "turbo run check",
+    "check:lint": "turbo run check:lint",
+    "check:type": "turbo run check:type",
+    "check:fmt": "turbo run check:fmt"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
+    "lefthook": "^2.0.16",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "turbo": "^2.8.1",
+    "typescript": "catalog:"
+  }
+}

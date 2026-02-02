@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    /* Base */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2024",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+
+    /* Not transpiling — used as linter */
+    "module": "preserve",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+
+    /* Lib */
+    "lib": ["es2024"]
+  },
+  "exclude": ["node_modules", "dist"]
+}

@@ -36,7 +36,9 @@
     "no-ternary": "off",
     "no-promise-executor-return": "off",
     "max-lines-per-function": "off",
-    "promise/avoid-new": "off"
+    "promise/avoid-new": "off",
+    "import/no-nodejs-modules": "off",
+    "no-duplicate-imports": ["warn", { "allowSeparateTypeImports": true }]
   },
   "ignorePatterns": ["dist/**"]
 }

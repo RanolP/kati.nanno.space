@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const dataDir = resolve(__dirname, "../../../data/illustar");
 
 const fetcher = createFetcher();
-const illustar = crawlIllustar(fetcher);
+const illustar = crawlIllustar({ fetcher });
 
 await renderActions(illustar.entries);
 await illustar.persist(dataDir);

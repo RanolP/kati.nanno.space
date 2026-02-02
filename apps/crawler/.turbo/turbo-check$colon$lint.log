@@ -1,6 +1,0 @@
-
-> @kati/crawler@0.0.0 check:lint /home/ranolp/Projects/RanolP/kati.nanno.space/apps/crawler
-> oxlint
-
-Found 0 warnings and 0 errors.
-Finished in 51ms on 6 files with 91 rules using 24 threads.

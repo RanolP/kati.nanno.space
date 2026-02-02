@@ -1,8 +1,0 @@
-
-> @kati/crawler@0.0.0 check:fmt /home/ranolp/Projects/RanolP/kati.nanno.space/apps/crawler
-> oxfmt --check
-
-Checking formatting...
-
-All matched files use the correct format.
-Finished in 122ms on 7 files using 24 threads.

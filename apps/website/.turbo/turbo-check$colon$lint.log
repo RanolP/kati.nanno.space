@@ -1,6 +1,0 @@
-
-> @kati/website@0.0.0 check:lint /home/ranolp/Projects/RanolP/kati.nanno.space/apps/website
-> oxlint
-
-Found 0 warnings and 0 errors.
-Finished in 42ms on 0 files with 91 rules using 24 threads.

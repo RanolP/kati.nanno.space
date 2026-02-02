@@ -1,4 +1,4 @@
-import type { ActionContext, ActionEvent, ActionFn, LockManager, RetryOptions } from "./types.ts";
+import type { ActionContext, ActionEvent, ActionFn, RetryOptions } from "./types.ts";
 
 import type { ActionInstruction, StepGenerator } from "./primitives.ts";
 import { createLockManager } from "./lock-manager.ts";
@@ -36,7 +36,10 @@ async function executeWithRetry<T>(fn: ActionFn<T>, retry?: RetryOptions): Promi
 }
 
 export function run<T>(def: ActionDefinition<T>, ctx?: Partial<ActionContext>): ActionResult<T> {
-  const lockManager: LockManager = ctx?.lockManager ?? createLockManager();
+  const resolvedCtx = {
+    lockManager: ctx?.lockManager ?? createLockManager(),
+    ...ctx,
+  } as ActionContext;
   const activeLocks = new Map<string, () => void>();
 
   // Event channel
@@ -81,7 +84,7 @@ export function run<T>(def: ActionDefinition<T>, ctx?: Partial<ActionContext>): 
 
       const instruction = value as ActionInstruction;
       try {
-        nextValue = await processInstruction(instruction, lockManager, activeLocks, pushEvent);
+        nextValue = await processInstruction(instruction, resolvedCtx, activeLocks, pushEvent);
       } catch (error) {
         done = true;
         eventResolve?.();
@@ -95,7 +98,7 @@ export function run<T>(def: ActionDefinition<T>, ctx?: Partial<ActionContext>): 
 
 async function processInstruction(
   instruction: ActionInstruction,
-  lockManager: LockManager,
+  ctx: ActionContext,
   activeLocks: Map<string, () => void>,
   pushEvent: (event: ActionEvent) => void,
 ): Promise<unknown> {
@@ -133,7 +136,7 @@ async function processInstruction(
 
     case "lock:acquire": {
       const keyStr = instruction.key.join("\0");
-      const release = await lockManager.acquire(instruction.key);
+      const release = await ctx.lockManager.acquire(instruction.key);
       activeLocks.set(keyStr, release);
       return undefined;
     }
@@ -146,6 +149,10 @@ async function processInstruction(
         release();
       }
       return undefined;
+    }
+
+    case "context": {
+      return ctx;
     }
 
     default: {

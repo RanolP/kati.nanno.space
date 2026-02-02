@@ -49,6 +49,12 @@ async function readBodyWithProgress(
   return Buffer.concat(chunks);
 }
 
+declare module "../features/action/types.ts" {
+  interface ActionContext {
+    readonly fetcher: Fetcher;
+  }
+}
+
 export function createFetcher(interceptors: readonly FetchInterceptor[] = []): Fetcher {
   return {
     async fetch<I, O>(

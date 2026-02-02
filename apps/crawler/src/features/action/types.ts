@@ -14,6 +14,7 @@ export interface RetryOptions {
 
 export type LockKey = readonly [string, ...string[]];
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ActionContext {
   readonly lockManager: LockManager;
 }

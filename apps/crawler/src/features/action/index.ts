@@ -1,4 +1,4 @@
-export { step, parallel, lock } from "./primitives.ts";
+export { lock, parallel, step, useContext } from "./primitives.ts";
 export { action, run } from "./runner.ts";
 export { createLockManager } from "./lock-manager.ts";
 export type {

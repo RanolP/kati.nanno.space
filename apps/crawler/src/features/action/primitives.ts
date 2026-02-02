@@ -1,4 +1,4 @@
-import type { ActionEvent, ActionFn, LockKey, RetryOptions } from "./types.ts";
+import type { ActionContext, ActionEvent, ActionFn, LockKey, RetryOptions } from "./types.ts";
 
 // Internal instruction types yielded to the runner
 export type ActionInstruction =
@@ -9,7 +9,8 @@ export type ActionInstruction =
       actions: readonly { name: string; fn: ActionFn<unknown>; retry?: RetryOptions }[];
     }
   | { kind: "lock:acquire"; key: LockKey }
-  | { kind: "lock:release"; key: LockKey };
+  | { kind: "lock:release"; key: LockKey }
+  | { kind: "context" };
 
 export type StepGenerator<T> = Generator<ActionInstruction, T, unknown>;
 
@@ -47,6 +48,11 @@ export function* parallel<T>(
 
   const results = yield { kind: "execute:parallel", actions: normalized };
   return results as T[];
+}
+
+export function* useContext(): StepGenerator<ActionContext> {
+  const ctx = yield { kind: "context" };
+  return ctx as ActionContext;
 }
 
 export function* lock<T>(key: LockKey, body: () => StepGenerator<T>): StepGenerator<T> {

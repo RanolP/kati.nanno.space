@@ -8,10 +8,18 @@
     "check:type": "tsc --noEmit",
     "check:fmt": "oxfmt --check",
     "fix:lint": "oxlint --fix",
-    "fix:fmt": "oxfmt"
+    "fix:fmt": "oxfmt",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "ink": "^6.6.0",
+    "react": "^19.2.4"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/react": "^19.2.10",
+    "ink-spinner": "^5.0.0",
+    "tsx": "^4.21.0",
     "valibot": "catalog:"
   }
 }

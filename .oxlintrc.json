@@ -38,7 +38,9 @@
     "max-lines-per-function": "off",
     "promise/avoid-new": "off",
     "import/no-nodejs-modules": "off",
-    "no-duplicate-imports": ["warn", { "allowSeparateTypeImports": true }]
+    "no-duplicate-imports": ["warn", { "allowSeparateTypeImports": true }],
+    "import/max-dependencies": "off",
+    "unicorn/no-immediate-mutation": "off"
   },
   "ignorePatterns": ["dist/**"]
 }

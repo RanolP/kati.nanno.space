@@ -48,9 +48,9 @@ function formatErrorStack(error: unknown): string | undefined {
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  const minutes = Math.floor(ms / 60000);
-  const seconds = ((ms % 60000) / 1000).toFixed(0);
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  const minutes = Math.floor(ms / 60_000);
+  const seconds = ((ms % 60_000) / 1000).toFixed(0);
   return `${minutes}m ${seconds}s`;
 }
 
@@ -275,7 +275,7 @@ function sortTasksByDependencies(
   }
 
   // Sort entries by start time first, then visit in that order
-  const sortedByStartTime = [...entries].sort((a, b) => {
+  const sortedByStartTime = entries.toSorted((a, b) => {
     const stateA = states.get(a.name);
     const stateB = states.get(b.name);
     const startA = stateA?.startedAt ?? Number.MAX_SAFE_INTEGER;

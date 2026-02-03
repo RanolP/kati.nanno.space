@@ -11,11 +11,11 @@ export function createSession(context: TaskContext): Session {
   const cache = new Map<string, Promise<TaskResult<unknown>>>();
 
   // Event broadcasting
-  const subscribers: Set<{
+  const subscribers = new Set<{
     queue: TaskEvent[];
-    resolve: (() => void) | null;
+    resolve: (() => void) | undefined;
     done: boolean;
-  }> = new Set();
+  }>();
 
   function emit(event: TaskEvent): void {
     for (const sub of subscribers) {
@@ -27,7 +27,7 @@ export function createSession(context: TaskContext): Session {
   function subscribe(): AsyncIterableIterator<TaskEvent> {
     const state = {
       queue: [] as TaskEvent[],
-      resolve: null as (() => void) | null,
+      resolve: undefined as (() => void) | undefined,
       done: false,
     };
     subscribers.add(state);
@@ -44,7 +44,7 @@ export function createSession(context: TaskContext): Session {
           await new Promise<void>((resolve) => {
             state.resolve = resolve;
           });
-          state.resolve = null;
+          state.resolve = undefined;
         }
         return { done: false, value: state.queue.shift()! };
       },

@@ -1,4 +1,4 @@
-export { scalar, composite, collection } from "./builders.ts";
+export { scalar, composite, collection, nullable } from "./builders.ts";
 export { merge } from "./merge.ts";
 export { serialize } from "./serialize.ts";
 export { deserialize } from "./deserialize.ts";

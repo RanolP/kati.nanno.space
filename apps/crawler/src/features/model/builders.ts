@@ -75,3 +75,11 @@ export function collection<V extends AnyModel, const K extends CompositeKey>(
     schema: v.array(valueModel.schema) as unknown as CollectionModel<V, K>["schema"],
   };
 }
+
+/** Make any model nullable */
+export function nullable<M extends AnyModel>(model: M): ScalarModel<Infer<M> | null> {
+  return {
+    kind: "scalar",
+    schema: v.nullable(model.schema) as unknown as v.GenericSchema<Infer<M> | null>,
+  };
+}

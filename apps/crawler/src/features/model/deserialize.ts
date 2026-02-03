@@ -22,6 +22,14 @@ function hasNestedCollection(model: AnyModel): boolean {
   return false;
 }
 
+function hasNestedComposite(model: AnyModel): boolean {
+  if (model.kind === "composite") return true;
+  if (model.kind === "collection") {
+    return hasNestedComposite(model.valueModel as AnyModel);
+  }
+  return false;
+}
+
 function reconstructComposite(
   model: AnyModel,
   record: Record<string, unknown>,
@@ -73,8 +81,8 @@ function deserializeCollection(
   const map = new Map<string, unknown>();
   const needsReconstruction =
     valueModel.kind === "composite" &&
-    Object.values(valueModel.fields as Record<string, AnyModel>).some((f) =>
-      hasNestedCollection(f),
+    Object.values(valueModel.fields as Record<string, AnyModel>).some(
+      (f) => hasNestedCollection(f) || hasNestedComposite(f),
     );
 
   for (const record of records) {

@@ -1,9 +1,9 @@
 export { task, work, spawn, yieldTask, useContext, Ok, Err } from "./primitives.ts";
-export type { TaskGenerator } from "./primitives.ts";
+export type { TaskGenerator, TaskOptions } from "./primitives.ts";
 export { runTask } from "./runner.ts";
 export type { RunResult } from "./runner.ts";
 export { createSession, closeSession } from "./session.ts";
-export type { Session } from "./session.ts";
+export type { Session, SessionOptions, PersistFn } from "./session.ts";
 export type {
   Task,
   TaskResult,
@@ -11,6 +11,7 @@ export type {
   TaskEvent,
   TaskInstruction,
   WorkContext,
+  PersistConfig,
   Ok as OkType,
   Err as ErrType,
 } from "./types.ts";

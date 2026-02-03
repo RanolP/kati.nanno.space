@@ -1,6 +1,7 @@
 import type {
   Err as ErrType,
   Ok as OkType,
+  PersistConfig,
   Task,
   TaskContext,
   TaskInstruction,
@@ -12,15 +13,6 @@ import type {
 
 export const Ok = <T>(data: T): OkType<T> => ({ ok: true, data });
 export const Err = (error: Error): ErrType => ({ ok: false, error });
-
-// --- Task Factory ---
-
-export function task<T>(
-  name: string,
-  run: () => Generator<TaskInstruction, TaskResult<T>, unknown>,
-): Task<T> {
-  return { name, run };
-}
 
 // --- Task Generator Type ---
 
@@ -52,4 +44,18 @@ export function* useContext(): TaskGenerator<TaskContext> {
 export function* work<T>(fn: (ctx: WorkContext) => Promise<T>): TaskGenerator<T> {
   const result = yield { kind: "work", fn: fn as (ctx: WorkContext) => Promise<unknown> };
   return result as T;
+}
+
+// --- Task Factory with Persist Config ---
+
+export interface TaskOptions {
+  persist?: PersistConfig;
+}
+
+export function task<T>(
+  name: string,
+  run: () => Generator<TaskInstruction, TaskResult<T>, unknown>,
+  options?: TaskOptions,
+): Task<T> {
+  return { name, run, persist: options?.persist };
 }

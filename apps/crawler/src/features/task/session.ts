@@ -1,13 +1,20 @@
-import type { TaskContext, TaskEvent, TaskResult } from "./types.ts";
+import type { PersistConfig, TaskContext, TaskEvent, TaskResult } from "./types.ts";
+
+export type PersistFn = (config: PersistConfig, data: unknown) => Promise<void>;
 
 export interface Session {
   readonly context: TaskContext;
   readonly cache: Map<string, Promise<TaskResult<unknown>>>;
+  readonly persist?: PersistFn | undefined;
   emit(event: TaskEvent): void;
   subscribe(): AsyncIterableIterator<TaskEvent>;
 }
 
-export function createSession(context: TaskContext): Session {
+export interface SessionOptions {
+  persist?: PersistFn;
+}
+
+export function createSession(context: TaskContext, options?: SessionOptions): Session {
   const cache = new Map<string, Promise<TaskResult<unknown>>>();
 
   // Event broadcasting
@@ -59,6 +66,7 @@ export function createSession(context: TaskContext): Session {
   return {
     context,
     cache,
+    persist: options?.persist,
     emit,
     subscribe,
   };

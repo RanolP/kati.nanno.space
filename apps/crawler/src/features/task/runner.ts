@@ -15,7 +15,11 @@ export function runTask<T>(task: Task<T>, session: Session): RunResult<T> {
   return { events, result };
 }
 
-async function executeTask<T>(task: Task<T>, session: Session): Promise<TaskResult<T>> {
+async function executeTask<T>(
+  task: Task<T>,
+  session: Session,
+  spawned = false,
+): Promise<TaskResult<T>> {
   // Check cache first
   const cached = session.cache.get(task.name);
   if (cached) {
@@ -23,13 +27,17 @@ async function executeTask<T>(task: Task<T>, session: Session): Promise<TaskResu
   }
 
   // Create the promise and cache it immediately for deduplication
-  const promise = runTaskInternal(task, session);
+  const promise = runTaskInternal(task, session, spawned);
   session.cache.set(task.name, promise as Promise<TaskResult<unknown>>);
 
   return promise;
 }
 
-async function runTaskInternal<T>(task: Task<T>, session: Session): Promise<TaskResult<T>> {
+async function runTaskInternal<T>(
+  task: Task<T>,
+  session: Session,
+  spawned: boolean,
+): Promise<TaskResult<T>> {
   session.emit({ kind: "taskStart", name: task.name, timestamp: Date.now() });
 
   try {
@@ -42,6 +50,12 @@ async function runTaskInternal<T>(task: Task<T>, session: Session): Promise<Task
 
       if (done) {
         const result = value as TaskResult<T>;
+
+        // Persist on success if task has persist config and is not spawned
+        if (result.ok && task.persist && session.persist && !spawned) {
+          await session.persist(task.persist, result.data);
+        }
+
         session.emit({ kind: "taskEnd", name: task.name, result, timestamp: Date.now() });
         return result;
       }
@@ -79,7 +93,9 @@ async function processInstruction(
       const childNames = instruction.tasks.map((t) => t.name);
       session.emit({ kind: "spawnStart", parent: currentTaskName, children: childNames });
 
-      const results = await Promise.all(instruction.tasks.map((t) => executeTask(t, session)));
+      const results = await Promise.all(
+        instruction.tasks.map((t) => executeTask(t, session, true)),
+      );
 
       session.emit({ kind: "spawnEnd", parent: currentTaskName });
       return results;

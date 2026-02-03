@@ -10,11 +10,19 @@ export interface Ok<T> {
   readonly data: T;
 }
 
+// --- Persist Config (optional, for automatic persistence) ---
+
+export interface PersistConfig {
+  readonly model: unknown;
+  readonly name: string;
+}
+
 // --- Task Definition ---
 
 export interface Task<T> {
   readonly name: string;
   readonly run: () => Generator<TaskInstruction, TaskResult<T>, unknown>;
+  readonly persist?: PersistConfig | undefined;
 }
 
 // --- Context (extensible via module augmentation) ---

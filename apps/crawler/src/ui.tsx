@@ -53,6 +53,8 @@ function WorkRow({ work, expanded }: { work: WorkState; expanded: boolean }) {
 }
 
 function TaskRow({ name, state, expanded }: { name: string; state: TaskState; expanded: boolean }) {
+  const stack = expanded && state.error ? formatErrorStack(state.error) : undefined;
+
   return (
     <Box flexDirection="column">
       <Box gap={1}>
@@ -62,6 +64,11 @@ function TaskRow({ name, state, expanded }: { name: string; state: TaskState; ex
           <Text color="red">{formatErrorMessage(state.error)}</Text>
         ) : undefined}
       </Box>
+      {stack ? (
+        <Box marginLeft={2}>
+          <Text dimColor>{stack}</Text>
+        </Box>
+      ) : undefined}
       {state.works.map((work, i) => (
         <WorkRow key={`${work.name}-${i}`} work={work} expanded={expanded} />
       ))}

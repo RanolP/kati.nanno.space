@@ -1,37 +1,33 @@
 import type { TaskEntry, TaskEvent, TaskState, TaskStatus, WorkState } from "./app/types.ts";
 import * as v from "valibot";
 import { Box, Text, render, useInput, useStdin } from "ink";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Spinner from "ink-spinner";
 
 interface PropertyMismatch {
   path: string;
-  expected: string;
-  received: string;
+  messages: string[];
 }
 
 function extractValibotMismatches(error: unknown): PropertyMismatch[] | undefined {
   if (!(error instanceof v.ValiError)) return undefined;
 
+  const flattened = v.flatten(error.issues);
   const mismatches: PropertyMismatch[] = [];
 
-  for (const issue of error.issues) {
-    const pathParts: string[] = [];
-    if (issue.path) {
-      for (const segment of issue.path) {
-        if ("key" in segment && segment.key !== undefined) {
-          pathParts.push(String(segment.key));
-        }
+  // Root-level errors
+  if (flattened.root && flattened.root.length > 0) {
+    mismatches.push({ path: "(root)", messages: flattened.root });
+  }
+
+  // Nested property errors
+  if (flattened.nested) {
+    for (const [path, messages] of Object.entries(flattened.nested)) {
+      if (messages && messages.length > 0) {
+        mismatches.push({ path, messages });
       }
     }
-
-    const path = pathParts.length > 0 ? pathParts.join(".") : "(root)";
-    mismatches.push({
-      path,
-      expected: issue.expected ?? "unknown",
-      received: issue.received,
-    });
   }
 
   return mismatches.length > 0 ? mismatches : undefined;
@@ -80,8 +76,7 @@ function PropertyMismatchList({ mismatches }: { mismatches: PropertyMismatch[] }
     <Box flexDirection="column" marginLeft={4}>
       {mismatches.slice(0, 5).map((m, i) => (
         <Text key={i} dimColor>
-          • <Text color="cyan">{m.path}</Text>: expected <Text color="green">{m.expected}</Text>,
-          got <Text color="red">{m.received}</Text>
+          • <Text color="cyan">{m.path}</Text>: {m.messages[0]}
         </Text>
       ))}
       {mismatches.length > 5 ? (
@@ -350,8 +345,14 @@ function App({ entries, onExit }: { entries: readonly TaskEntry[]; onExit: () =>
     }
   }, [allDone, hasErrors, isRawModeSupported, onExit]);
 
+  const subscribedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     for (const entry of entries) {
+      // Skip if already subscribed to this entry's events
+      if (subscribedRef.current.has(entry.name)) continue;
+      subscribedRef.current.add(entry.name);
+
       consumeEvents(
         entry.result.events,
         (name, fn) => {

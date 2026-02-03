@@ -21,5 +21,8 @@ export interface TaskState {
   status: TaskStatus;
   works: WorkState[];
   children: string[];
+  dependencies: string[];
+  startedAt?: number;
+  endedAt?: number;
   error?: unknown;
 }

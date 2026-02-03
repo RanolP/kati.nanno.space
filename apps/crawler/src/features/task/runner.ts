@@ -30,7 +30,7 @@ async function executeTask<T>(task: Task<T>, session: Session): Promise<TaskResu
 }
 
 async function runTaskInternal<T>(task: Task<T>, session: Session): Promise<TaskResult<T>> {
-  session.emit({ kind: "taskStart", name: task.name });
+  session.emit({ kind: "taskStart", name: task.name, timestamp: Date.now() });
 
   try {
     const gen = task.run();
@@ -42,7 +42,7 @@ async function runTaskInternal<T>(task: Task<T>, session: Session): Promise<Task
 
       if (done) {
         const result = value as TaskResult<T>;
-        session.emit({ kind: "taskEnd", name: task.name, result });
+        session.emit({ kind: "taskEnd", name: task.name, result, timestamp: Date.now() });
         return result;
       }
 
@@ -51,7 +51,7 @@ async function runTaskInternal<T>(task: Task<T>, session: Session): Promise<Task
     }
   } catch (error) {
     const result = Err(error instanceof Error ? error : new Error(String(error)));
-    session.emit({ kind: "taskEnd", name: task.name, result });
+    session.emit({ kind: "taskEnd", name: task.name, result, timestamp: Date.now() });
     return result as TaskResult<T>;
   }
 }
@@ -63,6 +63,11 @@ async function processInstruction(
 ): Promise<unknown> {
   switch (instruction.kind) {
     case "yieldTask": {
+      session.emit({
+        kind: "taskDependency",
+        task: currentTaskName,
+        dependsOn: instruction.task.name,
+      });
       const result = await executeTask(instruction.task, session);
       if (!result.ok) {
         throw result.error;

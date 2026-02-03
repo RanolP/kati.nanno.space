@@ -40,8 +40,9 @@ export type TaskInstruction =
 // --- Task Events (emitted by runner only) ---
 
 export type TaskEvent =
-  | { kind: "taskStart"; name: string }
-  | { kind: "taskEnd"; name: string; result: TaskResult<unknown> }
+  | { kind: "taskStart"; name: string; timestamp: number }
+  | { kind: "taskEnd"; name: string; result: TaskResult<unknown>; timestamp: number }
+  | { kind: "taskDependency"; task: string; dependsOn: string }
   | { kind: "workStart"; task: string; description?: string }
   | { kind: "workProgress"; task: string; value: "indefinite" | number }
   | { kind: "workEnd"; task: string }

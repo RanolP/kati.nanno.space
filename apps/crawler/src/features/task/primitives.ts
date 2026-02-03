@@ -34,7 +34,7 @@ export function* spawn(tasks: readonly Task<unknown>[]): TaskGenerator<TaskResul
 
 // --- Get Context ---
 
-export function* useContext(): TaskGenerator<TaskContext> {
+export function* TaskContext(): TaskGenerator<TaskContext> {
   const ctx = yield { kind: "context" };
   return ctx as TaskContext;
 }

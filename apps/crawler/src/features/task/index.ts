@@ -1,4 +1,4 @@
-export { task, work, spawn, yieldTask, useContext, Ok, Err } from "./primitives.ts";
+export { task, work, spawn, yieldTask, TaskContext, Ok, Err } from "./primitives.ts";
 export type { TaskGenerator, TaskOptions } from "./primitives.ts";
 export { runTask } from "./runner.ts";
 export type { RunResult } from "./runner.ts";
@@ -7,7 +7,7 @@ export type { Session, SessionOptions, PersistFn } from "./session.ts";
 export type {
   Task,
   TaskResult,
-  TaskContext,
+  TaskContext as TaskContextType,
   TaskEvent,
   TaskInstruction,
   WorkContext,

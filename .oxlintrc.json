@@ -41,7 +41,16 @@
     "no-duplicate-imports": ["warn", { "allowSeparateTypeImports": true }],
     "import/max-dependencies": "off",
     "unicorn/no-immediate-mutation": "off",
-    "no-nested-ternary": "off"
+    "no-nested-ternary": "off",
+    "new-cap": "off",
+    "func-names": "off",
+    "require-await": "off",
+    "typescript/no-empty-interface": "off",
+    "typescript/consistent-type-imports": "off",
+    "sort-imports": "off",
+    "max-lines": "off",
+    "capitalized-comments": "off",
+    "promise/prefer-await-to-then": "off"
   },
   "ignorePatterns": ["dist/**"]
 }

@@ -16,8 +16,8 @@ import { defineIllustarEndpoint } from "./define.ts";
 const ImageInfo = v.object({
   /** 이미지 ID */
   id: v.number(),
-  /** 부모 테이블 키 */
-  parent_table_key: v.string(),
+  /** 부모 테이블 키 (문자열 또는 숫자) */
+  parent_table_key: v.union([v.string(), v.number()]),
   /** 원본 파일명 */
   original_name: v.string(),
   /** 이미지 URL */

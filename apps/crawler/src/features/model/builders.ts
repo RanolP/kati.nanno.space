@@ -41,6 +41,12 @@ export const scalar = {
       v.transform((items) => [...items].toSorted() as V[]),
     ) as unknown as v.GenericSchema<V[]>,
   }),
+
+  /** 문자열 또는 숫자 (API에서 혼용되는 경우) */
+  stringOrNumber: (): ScalarModel<string | number> => ({
+    kind: "scalar",
+    schema: v.union([v.string(), v.number()]),
+  }),
 };
 
 export function composite<const Fields extends Record<string, AnyModel>>(

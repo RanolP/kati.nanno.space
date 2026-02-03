@@ -5,7 +5,7 @@ import { collection, composite, scalar } from "../../features/model/index.ts";
 
 const imageInfo = composite({
   id: scalar.number(),
-  parent_table_key: scalar.string(),
+  parent_table_key: scalar.stringOrNumber(),
   original_name: scalar.string(),
   url: scalar.string(),
 });

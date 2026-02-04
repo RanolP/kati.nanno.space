@@ -73,6 +73,16 @@
       "rules": {
         "import/no-default-export": "off"
       }
+    },
+    {
+      "files": [
+        "**/app/lib/store.ts",
+        "**/app/components/data-sources-panel.tsx",
+        "**/app/components/main-view.tsx"
+      ],
+      "rules": {
+        "import/no-cycle": "off"
+      }
     }
   ]
 }

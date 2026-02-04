@@ -4,6 +4,6 @@ export default {
   appDirectory: "src/app",
   ssr: true,
   async prerender() {
-    return ["/", "/sql"];
+    return ["/"];
   },
 } satisfies Config;

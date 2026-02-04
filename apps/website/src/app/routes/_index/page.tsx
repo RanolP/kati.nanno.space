@@ -1,33 +1,13 @@
-import { useEffect, useState } from "react";
-import type { Route } from "./+types/page";
+import { lazy, Suspense } from "react";
 
-export function meta(_args: Route.MetaArgs) {
-  return [
-    { title: "KATI - SQL Workbench" },
-    { name: "description", content: "Query Korean subculture event data with SQL" },
-  ];
-}
+const Room = lazy(() => import("../../components/room").then((m) => ({ default: m.Room })));
 
-export default function Home() {
-  const [RoomClient, setRoomClient] = useState<React.ComponentType>();
-
-  useEffect(() => {
-    void import("../../components/room.client").then((m) => {
-      setRoomClient(() => m.RoomClient);
-      return m;
-    });
-  }, []);
-
-  if (!RoomClient) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="text-lg font-medium">Loading KATI SQL Workbench...</div>
-          <div className="text-sm text-gray-500 mt-2">Initializing DuckDB</div>
-        </div>
-      </div>
-    );
-  }
-
-  return <RoomClient />;
+export default function IndexPage() {
+  return (
+    <Suspense
+      fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}
+    >
+      <Room />
+    </Suspense>
+  );
 }

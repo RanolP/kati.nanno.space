@@ -1,12 +1,29 @@
 import { useState } from "react";
+import type { DbSchemaNode } from "@sqlrooms/duckdb";
+import { TableSchemaTree } from "@sqlrooms/schema-tree";
 import { TableIcon } from "lucide-react";
 import { useRoomStore } from "../lib/store";
 
+function findTableNode(nodes: DbSchemaNode[], tableName: string): DbSchemaNode | undefined {
+  for (const node of nodes) {
+    if (node.object.type === "table" && node.object.name === tableName) {
+      return node;
+    }
+    if (node.children) {
+      const found = findTableNode(node.children, tableName);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
 export function DataSourcesPanel() {
   const tables = useRoomStore((state) => state.db.tables);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const schemaTrees = useRoomStore((state) => state.db.schemaTrees);
+  const [selectedTable, setSelectedTable] = useState<string | undefined>();
 
-  const selected = tables.find((t) => t.table.table === selectedTable);
+  const tableNode =
+    selectedTable && schemaTrees ? findTableNode(schemaTrees, selectedTable) : undefined;
 
   return (
     <div className="flex h-full flex-col">
@@ -26,17 +43,10 @@ export function DataSourcesPanel() {
         ))}
       </div>
 
-      {selected && (
+      {tableNode?.children && tableNode.children.length > 0 && (
         <div className="mt-auto border-t p-2">
           <div className="mb-2 text-xs font-medium text-muted-foreground">Schema</div>
-          <div className="space-y-1">
-            {selected.columns.map((col) => (
-              <div key={col.name} className="flex items-center justify-between text-xs">
-                <span className="truncate">{col.name}</span>
-                <span className="text-muted-foreground">{col.type}</span>
-              </div>
-            ))}
-          </div>
+          <TableSchemaTree schemaTrees={tableNode.children} skipSingleDatabaseOrSchema />
         </div>
       )}
     </div>

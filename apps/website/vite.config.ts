@@ -14,6 +14,7 @@ export default defineConfig({
       "@sqlrooms/room-store",
       "@sqlrooms/sql-editor",
       "@sqlrooms/data-table",
+      "@sqlrooms/schema-tree",
     ],
   },
   optimizeDeps: {
@@ -23,6 +24,7 @@ export default defineConfig({
       "@sqlrooms/ui",
       "@sqlrooms/sql-editor",
       "@sqlrooms/data-table",
+      "@sqlrooms/schema-tree",
     ],
   },
 });

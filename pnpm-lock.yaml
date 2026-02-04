@@ -93,6 +93,9 @@ importers:
       '@sqlrooms/room-shell':
         specifier: ^0.26.0
         version: 0.26.0(@types/node@25.2.0)(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(autoprefixer@10.4.24(postcss@8.5.6))(dnd-core@16.0.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))
+      '@sqlrooms/schema-tree':
+        specifier: ^0.26.0
+        version: 0.26.0(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(apache-arrow@17.0.0)(autoprefixer@10.4.24(postcss@8.5.6))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))
       '@sqlrooms/sql-editor':
         specifier: ^0.26.0
         version: 0.26.0(@types/node@25.2.0)(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(apache-arrow@17.0.0)(autoprefixer@10.4.24(postcss@8.5.6))(dnd-core@16.0.1)(react-dom@19.2.4(react@19.2.4))(react-mosaic-component@6.1.1(@types/node@25.2.0)(@types/react@19.2.11)(dnd-core@16.0.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))

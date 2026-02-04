@@ -7,25 +7,30 @@ interface QueryResult {
   rowCount: number;
 }
 
+const DEFAULT_QUERY = `-- Available tables: circles, concerts, events, ongoing_booth_info
+-- Try: SELECT * FROM events LIMIT 10
+
+SELECT * FROM events LIMIT 10`;
+
 export function SqlShell() {
-  const { loading, error, runQuery } = useDuckDB();
-  const [sql, setSql] = useState("");
-  const [result, setResult] = useState<QueryResult | null>(null);
-  const [queryError, setQueryError] = useState<string | null>(null);
+  const { loading, error, tables, runQuery } = useDuckDB();
+  const [sql, setSql] = useState(DEFAULT_QUERY);
+  const [result, setResult] = useState<QueryResult>();
+  const [queryError, setQueryError] = useState<string>();
   const [executing, setExecuting] = useState(false);
 
   const handleExecute = useCallback(async () => {
     if (!sql.trim()) return;
 
     setExecuting(true);
-    setQueryError(null);
-    setResult(null);
+    setQueryError(undefined);
+    setResult(undefined);
 
     try {
       const queryResult = await runQuery(sql);
       setResult(queryResult);
-    } catch (err) {
-      setQueryError(err instanceof Error ? err.message : String(err));
+    } catch (caughtError) {
+      setQueryError(caughtError instanceof Error ? caughtError.message : String(caughtError));
     } finally {
       setExecuting(false);
     }
@@ -42,7 +47,7 @@ export function SqlShell() {
   );
 
   if (loading) {
-    return <div>Loading DuckDB...</div>;
+    return <div>Loading DuckDB and data...</div>;
   }
 
   if (error) {
@@ -50,7 +55,21 @@ export function SqlShell() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {tables.length > 0 && (
+        <div
+          style={{
+            padding: "0.75rem",
+            backgroundColor: "#f0f7ff",
+            border: "1px solid #cce5ff",
+            borderRadius: "4px",
+            fontSize: "14px",
+          }}
+        >
+          <strong>Available tables:</strong> {tables.join(", ")}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         <textarea
           value={sql}
@@ -69,6 +88,7 @@ export function SqlShell() {
           }}
         />
         <button
+          type="button"
           onClick={handleExecute}
           disabled={executing || !sql.trim()}
           style={{
@@ -95,6 +115,7 @@ export function SqlShell() {
             color: "#c00",
             fontFamily: "monospace",
             fontSize: "14px",
+            whiteSpace: "pre-wrap",
           }}
         >
           {queryError}
@@ -102,7 +123,7 @@ export function SqlShell() {
       )}
 
       {result && (
-        <div style={{ flex: 1, overflow: "auto" }}>
+        <div style={{ overflow: "auto" }}>
           <div style={{ marginBottom: "0.5rem", color: "#666" }}>
             {result.rowCount} row{result.rowCount === 1 ? "" : "s"}
           </div>
@@ -124,6 +145,7 @@ export function SqlShell() {
                       padding: "0.5rem",
                       borderBottom: "2px solid #333",
                       backgroundColor: "#f5f5f5",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {col}
@@ -140,7 +162,12 @@ export function SqlShell() {
                       style={{
                         padding: "0.5rem",
                         borderBottom: "1px solid #ddd",
+                        maxWidth: "300px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
+                      title={formatCell(cell)}
                     >
                       {formatCell(cell)}
                     </td>

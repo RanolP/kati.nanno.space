@@ -1,5 +1,5 @@
 import { DuckDBProvider } from "../lib/duckdb/context";
-import { SqlShell } from "./SqlShell";
+import { SqlShell } from "./sql-shell";
 
 export function SqlShellClient() {
   return (

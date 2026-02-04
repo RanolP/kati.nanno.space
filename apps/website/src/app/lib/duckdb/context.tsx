@@ -2,10 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 
 interface DuckDBContextValue {
-  db: AsyncDuckDB | null;
-  conn: AsyncDuckDBConnection | null;
+  db: AsyncDuckDB | undefined;
+  conn: AsyncDuckDBConnection | undefined;
   loading: boolean;
-  error: Error | null;
+  error: Error | undefined;
+  tables: string[];
   runQuery: (sql: string) => Promise<QueryResult>;
 }
 
@@ -15,13 +16,21 @@ interface QueryResult {
   rowCount: number;
 }
 
-const DuckDBContext = createContext<DuckDBContextValue | null>(null);
+const DuckDBContext = createContext<DuckDBContextValue | undefined>(undefined);
+
+const PARQUET_TABLES = [
+  { name: "circles", url: "/data/circles.parquet" },
+  { name: "concerts", url: "/data/concerts.parquet" },
+  { name: "events", url: "/data/events.parquet" },
+  { name: "ongoing_booth_info", url: "/data/ongoing_booth_info.parquet" },
+];
 
 export function DuckDBProvider({ children }: { children: React.ReactNode }) {
-  const [db, setDb] = useState<AsyncDuckDB | null>(null);
-  const [conn, setConn] = useState<AsyncDuckDBConnection | null>(null);
+  const [db, setDb] = useState<AsyncDuckDB>();
+  const [conn, setConn] = useState<AsyncDuckDBConnection>();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<Error>();
+  const [tables, setTables] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,12 +55,36 @@ export function DuckDBProvider({ children }: { children: React.ReactNode }) {
 
         const connection = await database.connect();
 
+        // Register parquet files as tables
+        const loadedTables: string[] = [];
+        for (const table of PARQUET_TABLES) {
+          try {
+            const response = await fetch(table.url);
+            if (response.ok) {
+              const buffer = await response.arrayBuffer();
+              await database.registerFileBuffer(`${table.name}.parquet`, new Uint8Array(buffer));
+              await connection.query(
+                `CREATE TABLE ${table.name} AS SELECT * FROM read_parquet('${table.name}.parquet')`,
+              );
+              loadedTables.push(table.name);
+            }
+          } catch {
+            console.warn(`Failed to load table: ${table.name}`);
+          }
+        }
+
+        if (cancelled) {
+          await database.terminate();
+          return;
+        }
+
         setDb(database);
         setConn(connection);
+        setTables(loadedTables);
         setLoading(false);
-      } catch (err) {
+      } catch (caughtError) {
         if (!cancelled) {
-          setError(err instanceof Error ? err : new Error(String(err)));
+          setError(caughtError instanceof Error ? caughtError : new Error(String(caughtError)));
           setLoading(false);
         }
       }
@@ -92,8 +125,8 @@ export function DuckDBProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ db, conn, loading, error, runQuery }),
-    [db, conn, loading, error, runQuery],
+    () => ({ db, conn, loading, error, tables, runQuery }),
+    [db, conn, loading, error, tables, runQuery],
   );
 
   return <DuckDBContext.Provider value={value}>{children}</DuckDBContext.Provider>;

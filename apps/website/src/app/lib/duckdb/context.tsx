@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+import duckdbWasm from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
+import duckdbWorker from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?worker";
 
 interface DuckDBContextValue {
   db: AsyncDuckDB | undefined;
@@ -39,14 +41,11 @@ export function DuckDBProvider({ children }: { children: React.ReactNode }) {
       try {
         const duckdb = await import("@duckdb/duckdb-wasm");
 
-        const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
-        const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
-
-        const worker = new Worker(bundle.mainWorker!);
+        const worker = new duckdbWorker();
         const logger = new duckdb.ConsoleLogger();
         const database = new duckdb.AsyncDuckDB(logger, worker);
 
-        await database.instantiate(bundle.mainModule, bundle.pthreadWorker);
+        await database.instantiate(duckdbWasm);
 
         if (cancelled) {
           await database.terminate();

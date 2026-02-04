@@ -1,12 +1,14 @@
 -- Illustar circles (booths) projection
 -- Source: data/illustar/circles.jsonl
 -- Output: apps/website/public/data/circles.parquet
--- FK: event_id -> events.id
+-- FK: event_id -> events.id (broken - API returns different ID)
+-- FK: ongoing_booth_info_id -> ongoing_booth_info.id (use this for joins)
 
 COPY (
   SELECT
     id,
     event_id,
+    ongoing_booth_info_id,
     event_booth_application_id,
     booth_no,
     booth_name,

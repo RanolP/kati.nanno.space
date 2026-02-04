@@ -152,7 +152,13 @@ export function serialize<M extends AnyModel>(
   const files = new Map<string, string>();
 
   for (const [filename, entries] of output) {
-    const sorted = entries.toSorted((a, b) => compareCompositeKey(a.key, b.key));
+    // Dedupe by key (last entry wins)
+    const deduped = new Map<string, CollectionEntry>();
+    for (const entry of entries) {
+      deduped.set(keyToString(entry.key), entry);
+    }
+
+    const sorted = [...deduped.values()].toSorted((a, b) => compareCompositeKey(a.key, b.key));
 
     const lines = sorted.map((e) => stringifySorted(e.record));
     files.set(`${filename}.jsonl`, `${lines.join("\n")}\n`);

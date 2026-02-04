@@ -50,6 +50,8 @@ const circle = composite({
   id: scalar.number(),
   event_booth_application_id: scalar.number(),
   event_id: scalar.number(),
+  /** Join key for ongoing_booth_info (the ID used to fetch this circle) */
+  ongoing_booth_info_id: scalar.number(),
   booth_no: scalar.string(),
   booth_status: scalar.enum(BoothStatus),
   booth_name: scalar.string(),

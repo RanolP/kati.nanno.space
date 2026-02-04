@@ -72,7 +72,10 @@ export const crawlCircles = (): Task<Infer<typeof circleCollection>> =>
           });
 
           for (const circle of response.list) {
-            allCircles.set([circle.id].join("\0"), circle);
+            allCircles.set([circle.id].join("\0"), {
+              ...circle,
+              ongoing_booth_info_id: event.id,
+            });
           }
 
           if (page >= response.pageInfo.max_page) break;

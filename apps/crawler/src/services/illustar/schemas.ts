@@ -2,6 +2,16 @@ import * as v from "valibot";
 
 import { YN } from "./codes.ts";
 
+/** KST LocalDateTime string -> Unix timestamp (ms). Returns null for invalid dates like "0000-00-00". */
+export const KSTTimestamp = v.pipe(
+  v.string(),
+  v.transform((s): number | null => {
+    if (s.startsWith("0000")) return null;
+    const date = new Date(`${s.replace(" ", "T")}+09:00`);
+    return Number.isNaN(date.getTime()) ? null : date.getTime();
+  }),
+);
+
 /** 이미지 첨부 정보 */
 export const ImageInfo = v.object({
   /** 이미지 ID */
@@ -48,18 +58,18 @@ export const EventListItem = v.object({
   status: v.string(),
   /** 장소 */
   place: v.string(),
-  /** 시작일시 */
-  start_date: v.string(),
-  /** 종료일시 */
-  end_date: v.string(),
+  /** 시작일시 (Unix ms) */
+  start_date: KSTTimestamp,
+  /** 종료일시 (Unix ms) */
+  end_date: KSTTimestamp,
   /** 표시용 날짜 문자열 */
   show_date: v.string(),
-  /** 티켓 오픈일시 */
-  ticket_open_date: v.nullable(v.string()),
+  /** 티켓 오픈일시 (Unix ms) */
+  ticket_open_date: v.nullable(KSTTimestamp),
   /** 대표 이미지 ID */
   image: v.number(),
-  /** 티켓 마감일시 */
-  ticket_close_date: v.nullable(v.string()),
+  /** 티켓 마감일시 (Unix ms) */
+  ticket_close_date: v.nullable(KSTTimestamp),
   /** 티켓 날짜 안내 문구 */
   ticket_date_desc: v.nullable(v.string()),
   /** PC 티켓 배경 이미지 ID */

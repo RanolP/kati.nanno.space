@@ -9,8 +9,14 @@ import {
   PlusIcon,
   PlayIcon,
   XIcon,
+  CodeIcon,
+  LayoutGridIcon,
 } from "lucide-react";
 import { useRoomStore } from "../lib/store";
+import { CircleCardView } from "./circle-card-view";
+
+type ViewMode = "sql" | "circles";
+const VIEW_STORAGE_KEY = "kati-view-mode";
 
 type QueryCell = {
   id: string;
@@ -223,6 +229,15 @@ export function MainView() {
   const [firstTable] = tables;
   const defaultQuery = firstTable ? `SELECT * FROM ${firstTable.table.table} LIMIT 100` : "";
 
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "sql";
+    return (localStorage.getItem(VIEW_STORAGE_KEY) as ViewMode) || "sql";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
+  }, [viewMode]);
+
   const [cells, setCells] = useState<QueryCell[]>(() => {
     const saved = loadCellsFromStorage();
     if (saved) return saved;
@@ -253,37 +268,72 @@ export function MainView() {
   };
 
   return (
-    <div className="flex h-full bg-background">
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto bg-muted/10 py-1">
-        {cells.map((cell, index) => (
-          <QueryCellComponent
-            key={cell.id}
-            cell={cell}
-            index={index}
-            connector={connector}
-            tables={tables}
-            onUpdate={updateCell}
-            onRemove={removeCell}
-            canRemove={cells.length > 1}
-          />
-        ))}
-
-        {/* Add Cell Button */}
-        <div className="flex justify-center p-4">
-          <button
-            type="button"
-            onClick={addCell}
-            className="flex items-center gap-1.5 rounded border border-dashed border-muted-foreground/30 px-4 py-2 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-          >
-            <PlusIcon className="h-3.5 w-3.5" />
-            Add Query
-          </button>
-        </div>
+    <div className="flex h-full flex-col bg-background">
+      {/* View Mode Tabs */}
+      <div className="flex items-center gap-1 border-b bg-muted/30 px-3 py-1.5">
+        <button
+          type="button"
+          onClick={() => setViewMode("sql")}
+          className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === "sql"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <CodeIcon className="h-3.5 w-3.5" />
+          SQL Editor
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("circles")}
+          className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === "circles"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <LayoutGridIcon className="h-3.5 w-3.5" />
+          Circles
+        </button>
       </div>
 
-      {/* Right Sidebar - Cell Summary */}
-      <CellSummary cells={cells} onScrollTo={scrollToCell} />
+      {/* Content */}
+      {viewMode === "circles" ? (
+        <CircleCardView connector={connector} tablesLoaded={tables.length > 0} />
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Main Content */}
+          <div className="flex-1 overflow-auto bg-muted/10 py-1">
+            {cells.map((cell, index) => (
+              <QueryCellComponent
+                key={cell.id}
+                cell={cell}
+                index={index}
+                connector={connector}
+                tables={tables}
+                onUpdate={updateCell}
+                onRemove={removeCell}
+                canRemove={cells.length > 1}
+              />
+            ))}
+
+            {/* Add Cell Button */}
+            <div className="flex justify-center p-4">
+              <button
+                type="button"
+                onClick={addCell}
+                className="flex items-center gap-1.5 rounded border border-dashed border-muted-foreground/30 px-4 py-2 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              >
+                <PlusIcon className="h-3.5 w-3.5" />
+                Add Query
+              </button>
+            </div>
+          </div>
+
+          {/* Right Sidebar - Cell Summary */}
+          <CellSummary cells={cells} onScrollTo={scrollToCell} />
+        </div>
+      )}
     </div>
   );
 }

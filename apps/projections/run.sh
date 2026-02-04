@@ -3,8 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-# Create output directories
-mkdir -p apps/projections/out/illustar
+# Create output directory
+mkdir -p apps/website/public/data
 
 # Run all projections
 for sql in apps/projections/illustar/*.sql; do
@@ -12,4 +12,4 @@ for sql in apps/projections/illustar/*.sql; do
   duckdb < "$sql"
 done
 
-echo "Done. Parquet files written to apps/projections/out/"
+echo "Done. Parquet files written to apps/website/public/data/"

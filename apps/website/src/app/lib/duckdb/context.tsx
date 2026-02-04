@@ -25,6 +25,7 @@ const PARQUET_TABLES = [
   { name: "concerts", url: "/data/concerts.parquet" },
   { name: "events", url: "/data/events.parquet" },
   { name: "ongoing_booth_info", url: "/data/ongoing_booth_info.parquet" },
+  { name: "schedule", url: "/data/schedule.parquet" },
 ];
 
 export function DuckDBProvider({ children }: { children: React.ReactNode }) {

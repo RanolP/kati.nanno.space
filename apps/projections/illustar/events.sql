@@ -1,6 +1,6 @@
 -- Illustar events projection
 -- Source: data/illustar/events.jsonl
--- Output: apps/projections/out/illustar/events.parquet
+-- Output: apps/website/public/data/events.parquet
 
 COPY (
   SELECT
@@ -24,4 +24,4 @@ COPY (
     show_at_ongoing
   FROM read_json_auto('data/illustar/events.jsonl')
   ORDER BY id
-) TO 'apps/projections/out/illustar/events.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+) TO 'apps/website/public/data/events.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);

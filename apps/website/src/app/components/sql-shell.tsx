@@ -7,7 +7,7 @@ interface QueryResult {
   rowCount: number;
 }
 
-const DEFAULT_QUERY = `-- Available tables: circles, concerts, events, ongoing_booth_info
+const DEFAULT_QUERY = `-- Available tables: circles, concerts, events, ongoing_booth_info, schedule
 -- Try: SELECT * FROM events LIMIT 10
 
 SELECT * FROM events LIMIT 10`;

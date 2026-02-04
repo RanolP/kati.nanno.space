@@ -1,6 +1,6 @@
 -- Illustar concerts projection
 -- Source: data/illustar/concerts.jsonl
--- Output: apps/projections/out/illustar/concerts.parquet
+-- Output: apps/website/public/data/concerts.parquet
 
 COPY (
   SELECT
@@ -17,4 +17,4 @@ COPY (
     ticket_date_desc
   FROM read_json_auto('data/illustar/concerts.jsonl')
   ORDER BY id
-) TO 'apps/projections/out/illustar/concerts.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+) TO 'apps/website/public/data/concerts.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);

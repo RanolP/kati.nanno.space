@@ -59,23 +59,21 @@ export const crawlCircles = (): Task<Infer<typeof circleCollection>> =>
 
       const allCircles: Infer<typeof circleCollection> = new Map();
 
-      for (const event of ongoingEvents.values()) {
+      for (const [, boothInfo] of ongoingEvents) {
+        const ongoingBoothInfoId = boothInfo.id;
         let page = 1;
         const rowPerPage = 100;
 
         while (true) {
           const response = yield* work(async ($) => {
-            $.description(`Fetching circles for event ${event.id}, page ${page}`);
+            $.description(`Fetching circles for booth info ${ongoingBoothInfoId}, page ${page}`);
             return await fetcher.fetch(circleList, {
-              query: { event_id: event.id, page, row_per_page: rowPerPage },
+              query: { event_id: ongoingBoothInfoId, page, row_per_page: rowPerPage },
             });
           });
 
           for (const circle of response.list) {
-            allCircles.set([circle.id].join("\0"), {
-              ...circle,
-              ongoing_booth_info_id: event.id,
-            });
+            allCircles.set([circle.id].join("\0"), circle);
           }
 
           if (page >= response.pageInfo.max_page) break;

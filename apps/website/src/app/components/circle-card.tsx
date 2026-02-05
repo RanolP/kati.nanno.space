@@ -1,4 +1,4 @@
-import { ExternalLinkIcon, UserIcon, MapPinIcon, TagIcon } from "lucide-react";
+import { ExternalLinkIcon, UserIcon, MapPinIcon, ImageOffIcon } from "lucide-react";
 
 export interface Circle {
   id?: number;
@@ -71,73 +71,68 @@ export function CircleCard({ circle }: { circle: Circle }) {
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md">
-      {/* Image */}
-      {hasImage && (
-        <div className="aspect-video w-full overflow-hidden bg-muted">
+      {/* Image or Fallback */}
+      <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
+        {hasImage ? (
           <img
             src={circle.image_info_url!}
             alt={circle.booth_name}
             className="h-full w-full object-cover"
             loading="lazy"
           />
-        </div>
-      )}
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground/50">
+            <ImageOffIcon className="h-8 w-8" />
+            <span className="text-xs">미등록</span>
+          </div>
+        )}
+      </div>
 
       {/* Content */}
-      <div className="flex flex-1 flex-col p-4">
-        {/* Header */}
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-semibold">{circle.booth_name}</h3>
-            <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <MapPinIcon className="h-3 w-3" />
-                {circle.booth_no}
-              </span>
-              {circle.date_type && DATE_TYPE_LABELS[circle.date_type] && (
-                <span className="rounded bg-muted px-1.5 py-0.5">
-                  {DATE_TYPE_LABELS[circle.date_type]}
-                </span>
-              )}
-              {circle.booth_type && BOOTH_TYPE_LABELS[circle.booth_type] && (
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">
-                  {BOOTH_TYPE_LABELS[circle.booth_type]}
-                </span>
-              )}
-            </div>
+      <div className="flex flex-1 flex-col gap-1.5 p-3">
+        {/* Title + Booth Info */}
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{circle.booth_name}</h3>
+          <div className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+            <MapPinIcon className="h-3 w-3" />
+            {circle.booth_no}
           </div>
         </div>
 
-        {/* Nickname */}
-        {circle.user_nickname && (
-          <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
-            <UserIcon className="h-3 w-3" />
-            <span>{circle.user_nickname}</span>
-          </div>
-        )}
-
-        {/* Description */}
-        {circle.introduce && (
-          <p className="mb-3 line-clamp-3 flex-1 text-xs text-muted-foreground">
-            {circle.introduce}
-          </p>
-        )}
+        {/* Meta row: nickname + badges */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          {circle.user_nickname && (
+            <span className="flex items-center gap-0.5">
+              <UserIcon className="h-3 w-3" />
+              {circle.user_nickname}
+            </span>
+          )}
+          {circle.date_type && DATE_TYPE_LABELS[circle.date_type] && (
+            <span className="rounded bg-muted px-1 py-0.5 text-[10px]">
+              {DATE_TYPE_LABELS[circle.date_type]}
+            </span>
+          )}
+          {circle.booth_type && BOOTH_TYPE_LABELS[circle.booth_type] && (
+            <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary">
+              {BOOTH_TYPE_LABELS[circle.booth_type]}
+            </span>
+          )}
+        </div>
 
         {/* Tags */}
         {circle.tag && circle.tag.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1">
-            {circle.tag.slice(0, 5).map((t) => (
+          <div className="flex flex-wrap gap-1">
+            {circle.tag.slice(0, 4).map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
               >
-                <TagIcon className="h-2.5 w-2.5" />
-                {t.replace(/^#/, "")}
+                #{t.replace(/^#/, "")}
               </span>
             ))}
-            {circle.tag.length > 5 && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                +{circle.tag.length - 5}
+            {circle.tag.length > 4 && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                +{circle.tag.length - 4}
               </span>
             )}
           </div>
@@ -151,7 +146,7 @@ export function CircleCard({ circle }: { circle: Circle }) {
             }
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-auto flex items-center gap-1 text-xs text-primary hover:underline"
+            className="mt-auto flex items-center gap-1 text-[10px] text-primary hover:underline"
           >
             <ExternalLinkIcon className="h-3 w-3" />
             <span className="truncate">{circle.homepage}</span>

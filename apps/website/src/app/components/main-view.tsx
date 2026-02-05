@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DataTable, DuckDbConnector } from "@sqlrooms/duckdb";
-import { QueryDataTable } from "@sqlrooms/data-table";
 import { SqlMonacoEditor } from "@sqlrooms/sql-editor";
 import {
   CheckCircleIcon,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { useRoomStore } from "../lib/store";
 import { CircleCardView } from "./circle-card-view";
+import { QueryResultView } from "./query-result-view";
 
 type ViewMode = "sql" | "circles";
 const VIEW_STORAGE_KEY = "kati-view-mode";
@@ -176,7 +176,11 @@ function QueryCellComponent({
       {cell.executedQuery && tables.length > 0 && (
         <>
           <div className="border-t" style={{ height: cell.resultHeight }}>
-            <QueryDataTable className="h-full" fontSize="text-xs" query={cell.executedQuery} />
+            <QueryResultView
+              query={cell.executedQuery}
+              connector={connector}
+              height={cell.resultHeight}
+            />
           </div>
           <ResizeHandle onResizeStart={handleResizeStart} onResize={handleResize} />
         </>

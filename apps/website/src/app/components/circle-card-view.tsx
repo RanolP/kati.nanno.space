@@ -165,7 +165,7 @@ export function CircleCardView({
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
         {sortedCircles.map((circle, i) => (
           <CircleCard key={circle.id ?? i} circle={circle} />
         ))}

@@ -45,7 +45,7 @@ function hasNestedCollection(model: AnyModel): boolean {
   return false;
 }
 
-function flattenToRecord(model: AnyModel, value: unknown): Record<string, unknown> {
+function flattenToRecord(model: AnyModel, value: unknown, prefix = ""): Record<string, unknown> {
   if (model.kind === "scalar") {
     throw new Error("Cannot flatten a scalar to a record");
   }
@@ -57,10 +57,12 @@ function flattenToRecord(model: AnyModel, value: unknown): Record<string, unknow
 
     for (const [key, fieldModel] of Object.entries(fields)) {
       if (fieldModel.kind === "collection") continue;
+      const outputKey = prefix ? `${prefix}_${key}` : key;
       if (fieldModel.kind === "scalar") {
-        result[key] = obj[key];
+        result[outputKey] = obj[key];
       } else {
-        Object.assign(result, flattenToRecord(fieldModel, obj[key]));
+        // Nested composite: prefix with field name to avoid key collisions
+        Object.assign(result, flattenToRecord(fieldModel, obj[key], key));
       }
     }
     return result;

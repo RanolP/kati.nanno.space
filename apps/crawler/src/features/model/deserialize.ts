@@ -35,6 +35,7 @@ function reconstructComposite(
   record: Record<string, unknown>,
   parsed: ReadonlyMap<string, unknown[]>,
   parentFkFields: Record<string, unknown>,
+  prefix = "",
 ): unknown {
   if (model.kind !== "composite") {
     throw new Error("reconstructComposite expects a composite model");
@@ -44,6 +45,7 @@ function reconstructComposite(
   const fields = model.fields as Record<string, AnyModel>;
 
   for (const [key, fieldModel] of Object.entries(fields)) {
+    const recordKey = prefix ? `${prefix}_${key}` : key;
     if (fieldModel.kind === "collection") {
       const childRecords = parsed.get(key) ?? [];
       const fkFields = { ...parentFkFields };
@@ -59,9 +61,10 @@ function reconstructComposite(
 
       result[key] = deserializeCollection(fieldModel, matchingRecords, parsed);
     } else if (fieldModel.kind === "scalar") {
-      result[key] = record[key];
+      result[key] = record[recordKey];
     } else {
-      result[key] = reconstructComposite(fieldModel, record, parsed, parentFkFields);
+      // Nested composite: use field name as prefix to match flattened keys
+      result[key] = reconstructComposite(fieldModel, record, parsed, parentFkFields, key);
     }
   }
 

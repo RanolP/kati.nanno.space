@@ -1,6 +1,6 @@
 -- Illustar ongoing booth info projection
 -- Source: data/illustar/ongoing-booth-info.jsonl
--- Output: apps/website/public/data/ongoing_booth_info.parquet
+-- Output: apps/website/public/data/illustar/ongoing_booth_info.parquet
 
 COPY (
   SELECT
@@ -22,9 +22,9 @@ COPY (
     description,
     show_at_list,
     show_at_ongoing,
-    -- ticket_bg_image_pc_info flattened
-    original_name AS ticket_bg_image_pc_original_name,
-    url AS ticket_bg_image_pc_url
+    -- ticket_bg_image_pc_info (prefixed in JSONL)
+    ticket_bg_image_pc_info_original_name AS ticket_bg_image_pc_original_name,
+    ticket_bg_image_pc_info_url AS ticket_bg_image_pc_url
   FROM read_json_auto('data/illustar/ongoing-booth-info.jsonl')
   ORDER BY id
-) TO 'apps/website/public/data/ongoing_booth_info.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+) TO 'apps/website/public/data/illustar/ongoing_booth_info.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);

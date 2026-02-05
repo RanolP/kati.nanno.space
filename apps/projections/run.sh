@@ -3,8 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-# Create output directory
-mkdir -p apps/website/public/data
+# Create output directories
+mkdir -p apps/website/public/data/illustar
 
 # Run all projections
 for sql in apps/projections/illustar/*.sql; do

@@ -1,14 +1,12 @@
 -- Illustar circles (booths) projection
 -- Source: data/illustar/circles.jsonl
--- Output: apps/website/public/data/circles.parquet
--- FK: event_id -> events.id (broken - API returns different ID)
--- FK: ongoing_booth_info_id -> ongoing_booth_info.id (use this for joins)
+-- Output: apps/website/public/data/illustar/circles.parquet
+-- FK: event_id -> ongoing_booth_info.id
 
 COPY (
   SELECT
     id,
     event_id,
-    ongoing_booth_info_id,
     event_booth_application_id,
     booth_no,
     booth_name,
@@ -33,4 +31,4 @@ COPY (
     image_info.url AS image_info_url
   FROM read_json_auto('data/illustar/circles.jsonl')
   ORDER BY id
-) TO 'apps/website/public/data/circles.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+) TO 'apps/website/public/data/illustar/circles.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);

@@ -24,4 +24,4 @@ COPY (
     show_at_ongoing
   FROM read_json_auto('data/illustar/events.jsonl')
   ORDER BY id
-) TO 'apps/website/public/data/events.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+) TO 'apps/website/public/data/illustar/events.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);

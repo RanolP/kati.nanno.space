@@ -80,7 +80,7 @@ export function CircleCard({ circle }: { circle: Circle }) {
   return (
     <div className="flex overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md">
       {/* Left: Image or Fallback */}
-      <div className="aspect-square w-28 shrink-0 overflow-hidden bg-muted">
+      <div className="aspect-square w-32 shrink-0 overflow-hidden bg-muted">
         {hasImage ? (
           <img
             src={circle.image_info_url!}
@@ -89,48 +89,46 @@ export function CircleCard({ circle }: { circle: Circle }) {
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-muted-foreground/40">
-            <ImageOffIcon className="h-6 w-6" />
-            <span className="text-[10px]">미등록</span>
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground/40">
+            <ImageOffIcon className="h-8 w-8" />
+            <span className="text-xs">미등록</span>
           </div>
         )}
       </div>
 
       {/* Right: Content */}
-      <div className="flex min-w-0 flex-1 flex-col gap-1 p-2.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3">
         {/* Row 1: Title + Booth */}
         <div className="flex items-start justify-between gap-2">
-          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight">
+          <h3 className="min-w-0 flex-1 truncate font-semibold leading-tight">
             {circle.booth_name}
           </h3>
-          <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted-foreground">
-            <MapPinIcon className="h-3 w-3" />
+          <span className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
+            <MapPinIcon className="h-3.5 w-3.5" />
             {circle.booth_no}
           </span>
         </div>
 
         {/* Row 2: Nickname + Description */}
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           {circle.user_nickname && (
-            <span className="flex items-center gap-0.5">
-              <UserIcon className="h-3 w-3 shrink-0" />
+            <span className="flex items-center gap-1">
+              <UserIcon className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{circle.user_nickname}</span>
             </span>
           )}
-          {circle.introduce && (
-            <p className="mt-0.5 line-clamp-1 text-[11px]">{circle.introduce}</p>
-          )}
+          {circle.introduce && <p className="mt-0.5 line-clamp-1 text-xs">{circle.introduce}</p>}
         </div>
 
         {/* Row 3: Day + Booth Type */}
         <div className="flex flex-wrap items-center gap-1">
           {circle.date_type && DATE_TYPE_LABELS[circle.date_type] && (
-            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
               {DATE_TYPE_LABELS[circle.date_type]}
             </span>
           )}
           {circle.booth_type && BOOTH_TYPE_LABELS[circle.booth_type] && (
-            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
               {BOOTH_TYPE_LABELS[circle.booth_type]}
             </span>
           )}
@@ -139,17 +137,14 @@ export function CircleCard({ circle }: { circle: Circle }) {
         {/* Row 4: Tags + Homepage */}
         <div className="mt-auto flex flex-wrap items-center gap-1">
           {circle.tag &&
-            circle.tag.slice(0, 3).map((t) => (
+            circle.tag.map((t) => (
               <span
                 key={t}
-                className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
               >
                 #{t.replace(/^#/, "")}
               </span>
             ))}
-          {circle.tag && circle.tag.length > 3 && (
-            <span className="text-[10px] text-muted-foreground">+{circle.tag.length - 3}</span>
-          )}
           {circle.homepage && (
             <a
               href={
@@ -157,9 +152,9 @@ export function CircleCard({ circle }: { circle: Circle }) {
               }
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+              className="ml-auto flex items-center gap-0.5 text-xs text-primary hover:underline"
             >
-              <ExternalLinkIcon className="h-3 w-3" />
+              <ExternalLinkIcon className="h-3.5 w-3.5" />
             </a>
           )}
         </div>

@@ -176,7 +176,7 @@ export function CircleCardView({
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="flex flex-wrap justify-center gap-2">
         {sortedCircles.map((circle, i) => (
           <CircleCard key={circle.id ?? i} circle={circle} />
         ))}

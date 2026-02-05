@@ -116,7 +116,7 @@ export function QueryResultView({ query, connector, height }: QueryResultViewPro
       {/* Content */}
       <div className="flex-1 overflow-auto" style={{ height: isCircleData ? height - 32 : height }}>
         {viewMode === "cards" && isCircleData ? (
-          <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-wrap justify-center gap-2 p-3">
             {circles.map((circle, i) => (
               <CircleCard key={circle.id ?? i} circle={circle} />
             ))}

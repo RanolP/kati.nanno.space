@@ -78,7 +78,7 @@ export function CircleCard({ circle }: { circle: Circle }) {
   const hasImage = circle.image_info_url && circle.image_info_url.length > 0;
 
   return (
-    <div className="flex overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex min-w-[400px] max-w-[450px] flex-1 overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md">
       {/* Left: Image or Fallback */}
       <div className="aspect-square w-32 shrink-0 overflow-hidden bg-muted">
         {hasImage ? (

@@ -1,0 +1,167 @@
+import { execFile as execFileCb } from "node:child_process";
+import { access, readFile, readdir } from "node:fs/promises";
+import { basename, resolve } from "node:path";
+import { promisify } from "node:util";
+
+import type { BoothProduct, ProductVariant } from "./booth-info-types.ts";
+
+const execFile = promisify(execFileCb);
+
+export const BOOTH_INFO_DATA_DIR = resolve(
+  import.meta.dirname!,
+  "../../../../data/booth-info-analysis",
+);
+
+export interface BoothImageMeta {
+  readonly url: string;
+  readonly width: number;
+  readonly height: number;
+  readonly sha256: string;
+}
+
+export function boothInfoPaths(hash: string) {
+  const dir = resolve(BOOTH_INFO_DATA_DIR, hash.slice(0, 4));
+  return {
+    dir,
+    png: resolve(dir, `${hash}.png`),
+    meta: resolve(dir, `${hash}.meta.json`),
+    jsonl: resolve(dir, `${hash}.jsonl`),
+  };
+}
+
+/** Old variant shape without status field, used for migration. */
+interface LegacyVariant {
+  readonly name: string;
+  readonly images: readonly ProductVariant["images"][number][];
+}
+
+/** Read products from JSONL, migrating old data that lacks variant.status. */
+export async function readProducts(filePath: string): Promise<BoothProduct[]> {
+  const content = await readFile(filePath, "utf8");
+  return content
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => {
+      const raw = JSON.parse(line) as BoothProduct;
+      // Migrate old JSONL without variant-level status
+      const variants: ProductVariant[] = raw.variants.map((v) => {
+        const legacy = v as unknown as LegacyVariant;
+        if ("status" in v) return v;
+        return { name: legacy.name, images: legacy.images, status: "pending" as const };
+      });
+      return { ...raw, variants } as BoothProduct;
+    });
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Extract hashes from git dirty files in data/booth-info-analysis/. */
+async function gitDirtyHashes(): Promise<string[]> {
+  try {
+    const { stdout } = await execFile("git", ["status", "--porcelain", "--", BOOTH_INFO_DATA_DIR]);
+    const hashes = new Set<string>();
+    for (const line of stdout.split("\n")) {
+      const path = line.slice(3).trim();
+      if (!path) continue;
+      const file = basename(path);
+      const match = /^([0-9a-f]{64})\.\w/.exec(file);
+      if (match?.[1]) hashes.add(match[1]);
+    }
+    return [...hashes];
+  } catch {
+    return [];
+  }
+}
+
+/** Scan all prefix dirs and collect hashes that have the given extension. */
+async function scanAllHashes(ext: string): Promise<string[]> {
+  const hashes: string[] = [];
+  let prefixDirs: string[];
+  try {
+    prefixDirs = await readdir(BOOTH_INFO_DATA_DIR);
+  } catch {
+    return [];
+  }
+  for (const prefix of prefixDirs) {
+    const dir = resolve(BOOTH_INFO_DATA_DIR, prefix);
+    let files: string[];
+    try {
+      files = await readdir(dir);
+    } catch {
+      continue;
+    }
+    for (const file of files) {
+      if (file.endsWith(ext)) {
+        hashes.push(file.slice(0, -ext.length));
+      }
+    }
+  }
+  return hashes;
+}
+
+/**
+ * Discover hashes for `analyze`: needs `.png` + `.meta.json` but no `.jsonl`.
+ * Checks git dirty first, then does a full scan. Deduplicates results.
+ */
+export async function discoverAnalyzeHashes(): Promise<string[]> {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  const tryAdd = async (hash: string) => {
+    if (seen.has(hash)) return;
+    seen.add(hash);
+    const paths = boothInfoPaths(hash);
+    if ((await fileExists(paths.png)) && !(await fileExists(paths.jsonl))) {
+      result.push(hash);
+    }
+  };
+
+  const dirty = await gitDirtyHashes();
+  for (const hash of dirty) {
+    await tryAdd(hash);
+  }
+
+  const pngHashes = await scanAllHashes(".png");
+  for (const hash of pngHashes) {
+    await tryAdd(hash);
+  }
+
+  return result;
+}
+
+/**
+ * Discover a hash for `review`: needs `.jsonl` with at least one pending product.
+ * Checks git dirty first, then does a full scan.
+ */
+export async function discoverReviewHash(): Promise<string | undefined> {
+  const hasPending = async (hash: string): Promise<boolean> => {
+    const paths = boothInfoPaths(hash);
+    try {
+      const products = await readProducts(paths.jsonl);
+      return products.some(
+        (p) => p.audit_status === "pending" || p.variants.some((v) => v.status !== "approved"),
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  const dirty = await gitDirtyHashes();
+  for (const hash of dirty) {
+    if (await hasPending(hash)) return hash;
+  }
+
+  const jsonlHashes = await scanAllHashes(".jsonl");
+  for (const hash of jsonlHashes) {
+    if (await hasPending(hash)) return hash;
+  }
+
+  return undefined;
+}

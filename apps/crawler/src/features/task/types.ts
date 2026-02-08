@@ -1,6 +1,6 @@
 // --- Result Types ---
 
-export type TaskResult<T> = Err | Ok<T>;
+export type TaskResult<T> = Err | Ok<T> | Skipped;
 export interface Err {
   readonly ok: false;
   readonly error: Error;
@@ -8,6 +8,9 @@ export interface Err {
 export interface Ok<T> {
   readonly ok: true;
   readonly data: T;
+}
+export interface Skipped {
+  readonly ok: "skipped";
 }
 
 // --- Persist Config (optional, for automatic persistence) ---
@@ -49,6 +52,7 @@ export interface WorkContext {
 export type TaskInstruction =
   | { kind: "yieldTask"; task: Task<unknown> }
   | { kind: "spawn"; tasks: readonly Task<unknown>[] }
+  | { kind: "pool"; tasks: readonly Task<unknown>[]; concurrency: number }
   | { kind: "context" }
   | { kind: "work"; fn: (ctx: WorkContext) => Promise<unknown> };
 

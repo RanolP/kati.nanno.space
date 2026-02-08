@@ -7,7 +7,7 @@ export interface TaskEntry {
   readonly result: RunResult<unknown>;
 }
 
-export type TaskStatus = "pending" | "running" | "done" | "error";
+export type TaskStatus = "pending" | "running" | "done" | "skipped" | "error";
 
 export interface WorkState {
   name: string;

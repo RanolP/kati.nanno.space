@@ -2,6 +2,7 @@ import type {
   Err as ErrType,
   Ok as OkType,
   PersistConfig,
+  Skipped as SkippedType,
   Task,
   TaskContext,
   TaskInstruction,
@@ -13,6 +14,7 @@ import type {
 
 export const Ok = <T>(data: T): OkType<T> => ({ ok: true, data });
 export const Err = (error: Error): ErrType => ({ ok: false, error });
+export const Skipped: SkippedType = { ok: "skipped" };
 
 // --- Task Generator Type ---
 
@@ -29,6 +31,16 @@ export function* yieldTask<T>(t: Task<T>): TaskGenerator<T> {
 
 export function* spawn(tasks: readonly Task<unknown>[]): TaskGenerator<TaskResult<unknown>[]> {
   const results = yield { kind: "spawn", tasks };
+  return results as TaskResult<unknown>[];
+}
+
+// --- Pool: Concurrent with Limit ---
+
+export function* pool(
+  tasks: readonly Task<unknown>[],
+  concurrency: number,
+): TaskGenerator<TaskResult<unknown>[]> {
+  const results = yield { kind: "pool", tasks, concurrency };
   return results as TaskResult<unknown>[];
 }
 

@@ -51,8 +51,8 @@ async function runTaskInternal<T>(
       if (done) {
         const result = value as TaskResult<T>;
 
-        // Persist on success if task has persist config and is not spawned
-        if (result.ok && task.persist && session.persist && !spawned) {
+        // Persist on success if task has persist config and is not spawned (skip if skipped)
+        if (result.ok === true && task.persist && session.persist && !spawned) {
           await session.persist(task.persist, result.data);
         }
 
@@ -83,10 +83,10 @@ async function processInstruction(
         dependsOn: instruction.task.name,
       });
       const result = await executeTask(instruction.task, session);
-      if (!result.ok) {
+      if (result.ok === false) {
         throw result.error;
       }
-      return result.data;
+      return result.ok === true ? result.data : undefined;
     }
 
     case "spawn": {
@@ -96,6 +96,43 @@ async function processInstruction(
       const results = await Promise.all(
         instruction.tasks.map((t) => executeTask(t, session, true)),
       );
+
+      session.emit({ kind: "spawnEnd", parent: currentTaskName });
+      return results;
+    }
+
+    case "pool": {
+      const childNames = instruction.tasks.map((t) => t.name);
+      session.emit({ kind: "spawnStart", parent: currentTaskName, children: childNames });
+
+      const results: TaskResult<unknown>[] = Array.from<TaskResult<unknown>>({
+        length: instruction.tasks.length,
+      });
+      let nextIndex = 0;
+      const active = new Set<Promise<void>>();
+
+      const startNext = () => {
+        if (nextIndex >= instruction.tasks.length) return;
+        const idx = nextIndex++;
+        const t = instruction.tasks[idx]!;
+        const promise = executeTask(t, session, true).then((result) => {
+          results[idx] = result;
+          active.delete(promise);
+        });
+        active.add(promise);
+      };
+
+      const initialCount = Math.min(instruction.concurrency, instruction.tasks.length);
+      for (let i = 0; i < initialCount; i++) {
+        startNext();
+      }
+
+      while (active.size > 0) {
+        await Promise.race(active);
+        while (active.size < instruction.concurrency && nextIndex < instruction.tasks.length) {
+          startNext();
+        }
+      }
 
       session.emit({ kind: "spawnEnd", parent: currentTaskName });
       return results;

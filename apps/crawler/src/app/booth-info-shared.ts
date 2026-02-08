@@ -107,42 +107,17 @@ async function scanAllHashes(ext: string): Promise<string[]> {
 }
 
 /**
- * Discover hashes for `analyze`: needs `.png` + `.meta.json` but no `.jsonl`.
- * Checks git dirty first, then does a full scan. Deduplicates results.
- */
-export async function discoverAnalyzeHashes(): Promise<string[]> {
-  const result: string[] = [];
-  const seen = new Set<string>();
-
-  const tryAdd = async (hash: string) => {
-    if (seen.has(hash)) return;
-    seen.add(hash);
-    const paths = boothInfoPaths(hash);
-    if ((await fileExists(paths.png)) && !(await fileExists(paths.jsonl))) {
-      result.push(hash);
-    }
-  };
-
-  const dirty = await gitDirtyHashes();
-  for (const hash of dirty) {
-    await tryAdd(hash);
-  }
-
-  const pngHashes = await scanAllHashes(".png");
-  for (const hash of pngHashes) {
-    await tryAdd(hash);
-  }
-
-  return result;
-}
-
-/**
- * Discover a hash for `review`: needs `.jsonl` with at least one pending product.
+ * Discover a hash for `review`: needs either
+ *  - `.png` without `.jsonl` (will be auto-analyzed), or
+ *  - `.jsonl` with at least one pending product.
  * Checks git dirty first, then does a full scan.
  */
 export async function discoverReviewHash(): Promise<string | undefined> {
-  const hasPending = async (hash: string): Promise<boolean> => {
+  const needsReview = async (hash: string): Promise<boolean> => {
     const paths = boothInfoPaths(hash);
+    // PNG without JSONL — needs analysis then review
+    if ((await fileExists(paths.png)) && !(await fileExists(paths.jsonl))) return true;
+    // JSONL with pending variants — needs review
     try {
       const products = await readProducts(paths.jsonl);
       return products.some(
@@ -155,12 +130,18 @@ export async function discoverReviewHash(): Promise<string | undefined> {
 
   const dirty = await gitDirtyHashes();
   for (const hash of dirty) {
-    if (await hasPending(hash)) return hash;
+    if (await needsReview(hash)) return hash;
+  }
+
+  // Check PNGs (may need analysis) and JSONLs (may need review)
+  const pngHashes = await scanAllHashes(".png");
+  for (const hash of pngHashes) {
+    if (await needsReview(hash)) return hash;
   }
 
   const jsonlHashes = await scanAllHashes(".jsonl");
   for (const hash of jsonlHashes) {
-    if (await hasPending(hash)) return hash;
+    if (await needsReview(hash)) return hash;
   }
 
   return undefined;

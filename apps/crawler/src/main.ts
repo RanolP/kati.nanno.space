@@ -27,13 +27,6 @@ const boothInfoCommands = or(
     object({ action: constant("fetch" as const), url: argument(string({ metavar: "URL" })) }),
   ),
   command(
-    "analyze",
-    object({
-      action: constant("analyze" as const),
-      hash: optional(argument(string({ metavar: "HASH" }))),
-    }),
-  ),
-  command(
     "review",
     object({
       action: constant("review" as const),
@@ -58,25 +51,11 @@ if (result.command === "booth-info") {
   if (sub.action === "fetch") {
     const { boothInfoFetch } = await import("./app/booth-info-fetch.ts");
     await runTasks([() => boothInfoFetch(sub.url)]);
-  } else if (sub.action === "analyze") {
-    const { boothInfoAnalyze } = await import("./app/booth-info-analyze.ts");
-    if (sub.hash) {
-      await runTasks([() => boothInfoAnalyze(sub.hash!)]);
-    } else {
-      const { discoverAnalyzeHashes } = await import("./app/booth-info-shared.ts");
-      const hashes = await discoverAnalyzeHashes();
-      if (hashes.length === 0) {
-        console.log("All images already analyzed. Pass a HASH to force re-analyze.");
-        process.exit(0);
-      }
-      console.log(`Found ${hashes.length} image(s) to analyze`);
-      await runTasks(hashes.map((h) => () => boothInfoAnalyze(h)));
-    }
   } else {
     const { discoverReviewHash } = await import("./app/booth-info-shared.ts");
     const hash = sub.hash ?? (await discoverReviewHash());
     if (!hash) {
-      console.error("No hash to review. Provide a HASH or run analyze first.");
+      console.error("No hash to review. Provide a HASH or fetch an image first.");
       process.exit(1);
     }
     console.log(`Reviewing ${hash.slice(0, 12)}…`);

@@ -576,6 +576,41 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
 
 export function boothInfoReview(hash: string): Task<BoothProduct[]> {
   return task("booth-info/review", function* () {
+    // Auto-analyze if JSONL doesn't exist yet
+    yield* work(async ($) => {
+      const paths = boothInfoPaths(hash);
+      let needsAnalysis = false;
+      try {
+        await readFile(paths.jsonl);
+      } catch {
+        needsAnalysis = true;
+      }
+
+      if (!needsAnalysis) return;
+
+      $.description(`Reading image and metadata — ${hash.slice(0, 12)}…`);
+      const pngBuf = await readFile(paths.png);
+
+      let meta: BoothImageMeta;
+      try {
+        meta = JSON.parse(await readFile(paths.meta, "utf8")) as BoothImageMeta;
+      } catch {
+        const metadata = await sharp(pngBuf).metadata();
+        meta = { url: "", width: metadata.width!, height: metadata.height!, sha256: hash };
+      }
+
+      $.description(`Extracting products (Gemini 2.5 Flash) — ${hash.slice(0, 12)}…`);
+      const geminiResult = await runGeminiExtraction(pngBuf);
+      const products = geminiToProducts(geminiResult, hash, meta);
+
+      $.description(
+        `Writing ${products.length} products → ${hash.slice(0, 4)}/${hash.slice(0, 12)}…`,
+      );
+      await mkdir(paths.dir, { recursive: true });
+      const jsonl = `${products.map((p) => JSON.stringify(p)).join("\n")}\n`;
+      await writeFile(paths.jsonl, jsonl, "utf8");
+    });
+
     const validated = yield* work(async ($) => {
       $.description(`Waiting for human review — http://localhost:3001/review/${hash}`);
       return await runValidationServer(hash);

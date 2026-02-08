@@ -41,6 +41,7 @@ const parser = or(
     object({ command: constant("booth-info" as const), sub: boothInfoCommands }),
   ),
   command("illustar", object({ command: constant("illustar" as const) })),
+  command("find-info", object({ command: constant("find-info" as const) })),
 );
 
 const result = run(parser, { help: "both", programName: "pnpm crawl" });
@@ -62,7 +63,7 @@ if (result.command === "booth-info") {
     const { boothInfoReview } = await import("./app/booth-info-review.tsx");
     await runTasks([() => boothInfoReview(hash)]);
   }
-} else {
+} else if (result.command === "illustar") {
   const { illustarTasks } = await import("./app/illustar.ts");
   const { persist } = await import("./app/persist.ts");
   const { createFetcher } = await import("./services/endpoint.ts");
@@ -79,7 +80,7 @@ if (result.command === "booth-info") {
     );
   };
 
-  const session = createSession({ fetcher }, { persist: persistFn });
+  const session = createSession({ fetcher } as TaskContextType, { persist: persistFn });
 
   const entries = illustarTasks.map((createTask) => {
     const task = createTask();
@@ -87,6 +88,19 @@ if (result.command === "booth-info") {
     return { name: task.name, result: resultEntry };
   });
 
+  await renderTasks(entries);
+  process.exit(0);
+} else {
+  const { findInfo } = await import("./app/find-info.ts");
+  const { createFetcher } = await import("./services/endpoint.ts");
+  const { TwitterChannel } = await import("./services/twitter/index.ts");
+
+  const fetcher = createFetcher();
+  const twitterChannel = new TwitterChannel();
+  const session = createSession({ fetcher, twitterChannel });
+
+  const t = findInfo();
+  const entries = [{ name: t.name, result: runTask(t as Task<unknown>, session) }];
   await renderTasks(entries);
   process.exit(0);
 }

@@ -6,3 +6,5 @@ dist/
 .env
 *.local
 local.*
+
+data/find-info/.checkpoint.json

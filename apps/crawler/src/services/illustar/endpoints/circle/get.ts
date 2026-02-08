@@ -7,9 +7,9 @@ import {
   DateTypeSchema,
   GoodsTypeSchema,
   YN,
-} from "../codes.ts";
-import { defineIllustarEndpoint } from "../define.ts";
-import { ImageInfo, PageInfo } from "../schemas.ts";
+} from "../../codes.ts";
+import { defineIllustarEndpoint } from "../../define.ts";
+import { ImageInfo, PageInfo } from "../../schemas.ts";
 
 /** 서클(동인 부스) 목록 항목 */
 const CircleListItem = v.object({

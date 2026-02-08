@@ -1,7 +1,7 @@
 import * as v from "valibot";
 
-import { defineIllustarEndpoint } from "../define.ts";
-import { KSTTimestamp, PageInfo } from "../schemas.ts";
+import { defineIllustarEndpoint } from "../../define.ts";
+import { KSTTimestamp, PageInfo } from "../../schemas.ts";
 
 /** 공연(콘서트/티켓) 목록 항목 */
 const ConcertListItem = v.object({

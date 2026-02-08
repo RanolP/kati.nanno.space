@@ -1,7 +1,7 @@
 import * as v from "valibot";
 
-import { defineIllustarEndpoint } from "../../define.ts";
-import { ImageInfo } from "../../schemas.ts";
+import { defineIllustarEndpoint } from "../../../define.ts";
+import { ImageInfo } from "../../../schemas.ts";
 
 /** 일정 항목 */
 const ScheduleItem = v.object({

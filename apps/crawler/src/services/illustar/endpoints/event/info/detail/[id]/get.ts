@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-import { defineIllustarEndpoint } from "../../../define.ts";
+import { defineIllustarEndpoint } from "../../../../../define.ts";
 
 /** 행사 상세 정보 */
 const EventDetail = v.object({

@@ -8,11 +8,11 @@ import {
   ongoingBoothInfoCollection,
   scheduleCollection,
 } from "./models/illustar.ts";
-import { circleList } from "../services/illustar/endpoints/circle.ts";
-import { concertList } from "../services/illustar/endpoints/concert.ts";
-import { eventList } from "../services/illustar/endpoints/event/list.ts";
-import { ongoingBoothInfo } from "../services/illustar/endpoints/main/ongoingBoothInfo.ts";
-import { schedule } from "../services/illustar/endpoints/main/schedule.ts";
+import { circleList } from "../services/illustar/endpoints/circle/get.ts";
+import { concertList } from "../services/illustar/endpoints/concert/get.ts";
+import { eventList } from "../services/illustar/endpoints/event/list/get.ts";
+import { ongoingBoothInfo } from "../services/illustar/endpoints/main/ongoing-booth-info/get.ts";
+import { schedule } from "../services/illustar/endpoints/main/schedule/get.ts";
 import { toMap } from "../shared/collection.ts";
 
 export const crawlEvents = (): Task<Infer<typeof eventCollection>> =>

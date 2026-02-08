@@ -78,6 +78,9 @@ function StatusIcon({ status }: { status: TaskStatus }) {
     case "done": {
       return <Text color="green">✓</Text>;
     }
+    case "skipped": {
+      return <Text dimColor>–</Text>;
+    }
     case "error": {
       return <Text color="red">✗</Text>;
     }
@@ -122,23 +125,40 @@ function WorkRow({ work, expanded }: { work: WorkState; expanded: boolean }) {
   );
 }
 
+function workDotElement(w: WorkState): React.ReactNode {
+  switch (w.status) {
+    case "done": {
+      return <Text color="green">●</Text>;
+    }
+    case "running": {
+      return <Text color="yellow">○</Text>;
+    }
+    case "error": {
+      return <Text color="red">●</Text>;
+    }
+    default: {
+      return <Text dimColor>○</Text>;
+    }
+  }
+}
+
 function WorkDots({ works }: { works: WorkState[] }) {
   if (works.length === 0) return undefined;
 
+  if (works.length >= 13) {
+    const hiddenCount = works.length - 3;
+    const tail = works.slice(-3);
+    return (
+      <Box gap={1} marginLeft={1}>
+        <Text dimColor>{hiddenCount}</Text>
+        {tail.map((w) => workDotElement(w))}
+      </Box>
+    );
+  }
+
   return (
     <Box gap={1} marginLeft={1}>
-      {works.map((w) => {
-        switch (w.status) {
-          case "done":
-            return <Text color="green">●</Text>;
-          case "running":
-            return <Text color="yellow">○</Text>;
-          case "error":
-            return <Text color="red">●</Text>;
-          default:
-            return <Text dimColor>○</Text>;
-        }
-      })}
+      {works.map((w) => workDotElement(w))}
     </Box>
   );
 }
@@ -146,11 +166,13 @@ function WorkDots({ works }: { works: WorkState[] }) {
 function TaskRow({
   name,
   state,
+  states,
   focused,
   expanded,
 }: {
   name: string;
   state: TaskState;
+  states: Map<string, TaskState>;
   focused: boolean;
   expanded: boolean;
 }) {
@@ -192,10 +214,156 @@ function TaskRow({
           <Text dimColor>{stack}</Text>
         </Box>
       ) : undefined}
+      {state.children.length > 0 ? (
+        <ChildrenView childNames={state.children} states={states} expanded={expanded} />
+      ) : undefined}
       {expanded &&
         state.works.map((work, i) => (
           <WorkRow key={`${work.name}-${i}`} work={work} expanded={expanded} />
         ))}
+    </Box>
+  );
+}
+
+function CompletedSummary({
+  doneEntries,
+  skippedEntries,
+  states,
+  focused,
+  expanded,
+}: {
+  doneEntries: TaskEntry[];
+  skippedEntries: TaskEntry[];
+  states: Map<string, TaskState>;
+  focused: boolean;
+  expanded: boolean;
+}) {
+  const parts: string[] = [];
+  if (doneEntries.length > 0) parts.push(`${doneEntries.length} done`);
+  if (skippedEntries.length > 0) parts.push(`${skippedEntries.length} skipped`);
+
+  return (
+    <Box flexDirection="column">
+      <Box gap={1}>
+        <Text>{focused ? "▸" : " "}</Text>
+        <Text color="green">✓</Text>
+        <Text bold={focused}>{parts.join(", ")}</Text>
+      </Box>
+      {expanded &&
+        [...doneEntries, ...skippedEntries].map((entry) => {
+          const state = states.get(entry.name);
+          const isSkipped = state?.status === "skipped";
+          const duration =
+            state?.startedAt !== undefined && state?.endedAt !== undefined
+              ? state.endedAt - state.startedAt
+              : undefined;
+          return (
+            <Box key={entry.name} gap={1} marginLeft={2}>
+              {isSkipped ? <Text dimColor>–</Text> : <Text color="green">✓</Text>}
+              <Text dimColor>{entry.name}</Text>
+              {duration !== undefined ? (
+                <Text dimColor>({formatDuration(duration)})</Text>
+              ) : undefined}
+            </Box>
+          );
+        })}
+    </Box>
+  );
+}
+
+function ChildrenView({
+  childNames,
+  states,
+  expanded,
+}: {
+  childNames: string[];
+  states: Map<string, TaskState>;
+  expanded: boolean;
+}) {
+  if (childNames.length === 0) return undefined;
+
+  const children = childNames.map((name) => ({
+    name,
+    state: states.get(name),
+  }));
+
+  if (expanded) {
+    return (
+      <Box flexDirection="column" marginLeft={2}>
+        {children.map(({ name, state }) => {
+          const duration =
+            state?.startedAt !== undefined && state?.endedAt !== undefined
+              ? state.endedAt - state.startedAt
+              : undefined;
+          const currentWork = state?.works.findLast((w) => w.status === "running");
+          return (
+            <Box key={name} flexDirection="column">
+              <Box gap={1}>
+                <StatusIcon status={state?.status ?? "pending"} />
+                <Text dimColor>{name}</Text>
+                {duration !== undefined ? (
+                  <Text dimColor>({formatDuration(duration)})</Text>
+                ) : undefined}
+                {state?.status === "error" && state.error ? (
+                  <Text color="red">{formatErrorMessage(state.error)}</Text>
+                ) : undefined}
+              </Box>
+              {currentWork?.description ? (
+                <Box marginLeft={4}>
+                  <Text dimColor>{currentWork.description}</Text>
+                </Box>
+              ) : undefined}
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  }
+
+  // Collapsed: show running + error individually, summary for rest
+  const running = children.filter((c) => c.state?.status === "running");
+  const errored = children.filter((c) => c.state?.status === "error");
+  const doneCount = children.filter((c) => c.state?.status === "done").length;
+  const skippedCount = children.filter((c) => c.state?.status === "skipped").length;
+  const pendingCount = children.filter((c) => !c.state || c.state.status === "pending").length;
+
+  const completedParts: string[] = [];
+  if (doneCount > 0) completedParts.push(`${doneCount} done`);
+  if (skippedCount > 0) completedParts.push(`${skippedCount} skipped`);
+
+  return (
+    <Box flexDirection="column" marginLeft={2}>
+      {running.map(({ name, state }) => {
+        const currentWork = state?.works.findLast((w) => w.status === "running");
+        return (
+          <Box key={name} gap={1}>
+            <StatusIcon status="running" />
+            <Text dimColor>{name}</Text>
+            {currentWork?.description ? (
+              <Text dimColor> — {currentWork.description}</Text>
+            ) : undefined}
+          </Box>
+        );
+      })}
+      {errored.map(({ name, state }) => (
+        <Box key={name} gap={1}>
+          <StatusIcon status="error" />
+          <Text dimColor>{name}</Text>
+          {state?.error ? <Text color="red"> {formatErrorMessage(state.error)}</Text> : undefined}
+        </Box>
+      ))}
+      {completedParts.length > 0 ? (
+        <Box gap={1}>
+          <Text color="green">✓</Text>
+          <Text dimColor>{completedParts.join(", ")}</Text>
+        </Box>
+      ) : undefined}
+      {pendingCount > 0 ? (
+        <Box gap={1}>
+          <Text dimColor>○</Text>
+          <Text dimColor>{pendingCount} pending</Text>
+        </Box>
+      ) : undefined}
     </Box>
   );
 }
@@ -217,10 +385,18 @@ function consumeEvents(
           break;
         }
         case "taskEnd": {
+          let status: TaskStatus;
+          if (event.result.ok === "skipped") {
+            status = "skipped";
+          } else if (event.result.ok) {
+            status = "done";
+          } else {
+            status = "error";
+          }
           update(event.name, (prev) => ({
             ...prev,
-            status: event.result.ok ? "done" : "error",
-            error: event.result.ok ? undefined : event.result.error,
+            status,
+            error: event.result.ok === false ? event.result.error : undefined,
             endedAt: event.timestamp,
           }));
           break;
@@ -276,7 +452,7 @@ function consumeEvents(
         case "spawnStart": {
           update(event.parent, (prev) => ({
             ...prev,
-            children: event.children as string[],
+            children: [...new Set([...prev.children, ...(event.children as string[])])],
           }));
           break;
         }
@@ -361,7 +537,35 @@ function App({ entries, onExit }: { entries: readonly TaskEntry[]; onExit: () =>
   // Sort entries by dependencies and start time
   const sortedEntries = useMemo(() => sortTasksByDependencies(entries, states), [entries, states]);
 
-  const allDone = [...states.values()].every((s) => s.status === "done" || s.status === "error");
+  const { displayLength, doneEntries, skippedEntries, otherEntries, collapseCompleted } =
+    useMemo(() => {
+      const done: TaskEntry[] = [];
+      const skipped: TaskEntry[] = [];
+      const other: TaskEntry[] = [];
+      for (const entry of sortedEntries) {
+        const status = states.get(entry.name)?.status;
+        if (status === "done") {
+          done.push(entry);
+        } else if (status === "skipped") {
+          skipped.push(entry);
+        } else {
+          other.push(entry);
+        }
+      }
+      const completedCount = done.length + skipped.length;
+      const collapse = completedCount >= 10;
+      return {
+        displayLength: collapse ? 1 + other.length : sortedEntries.length,
+        doneEntries: done,
+        skippedEntries: skipped,
+        otherEntries: other,
+        collapseCompleted: collapse,
+      };
+    }, [sortedEntries, states]);
+
+  const allDone = [...states.values()].every(
+    (s) => s.status === "done" || s.status === "skipped" || s.status === "error",
+  );
   const hasErrors = [...states.values()].some((s) => s.status === "error");
 
   useInput(
@@ -374,7 +578,7 @@ function App({ entries, onExit }: { entries: readonly TaskEntry[]; onExit: () =>
           setFocusedIndex((prev) => Math.max(0, prev - 1));
         }
         if (key.downArrow) {
-          setFocusedIndex((prev) => Math.min(sortedEntries.length - 1, prev + 1));
+          setFocusedIndex((prev) => Math.min(displayLength - 1, prev + 1));
         }
         if (input === "e" || key.return) {
           // Toggle expand: if already expanded, collapse; otherwise expand focused
@@ -384,10 +588,14 @@ function App({ entries, onExit }: { entries: readonly TaskEntry[]; onExit: () =>
           onExit();
         }
       },
-      [onExit, focusedIndex, sortedEntries.length],
+      [onExit, focusedIndex, displayLength],
     ),
     { isActive: isRawModeSupported },
   );
+
+  useEffect(() => {
+    setFocusedIndex((prev) => Math.min(prev, Math.max(0, displayLength - 1)));
+  }, [displayLength]);
 
   useEffect(() => {
     if (allDone && !hasErrors) {
@@ -410,8 +618,12 @@ function App({ entries, onExit }: { entries: readonly TaskEntry[]; onExit: () =>
         entry.result.events,
         (name, fn) => {
           setStates((prev) => {
-            const current = prev.get(name);
-            if (!current) return prev;
+            const current = prev.get(name) ?? {
+              status: "pending" as const,
+              works: [] as WorkState[],
+              children: [] as string[],
+              dependencies: [] as string[],
+            };
             const next = new Map(prev);
             next.set(name, fn(current));
             return next;
@@ -436,22 +648,55 @@ function App({ entries, onExit }: { entries: readonly TaskEntry[]; onExit: () =>
 
   return (
     <Box flexDirection="column">
-      {sortedEntries.map((entry, index) => (
-        <TaskRow
-          key={entry.name}
-          name={entry.name}
-          state={
-            states.get(entry.name) ?? {
-              status: "pending",
-              works: [],
-              children: [],
-              dependencies: [],
+      {collapseCompleted ? (
+        <>
+          <CompletedSummary
+            doneEntries={doneEntries}
+            skippedEntries={skippedEntries}
+            states={states}
+            focused={focusedIndex === 0}
+            expanded={expandedIndex === 0}
+          />
+          {otherEntries.map((entry, index) => {
+            const displayIndex = index + 1;
+            return (
+              <TaskRow
+                key={entry.name}
+                name={entry.name}
+                state={
+                  states.get(entry.name) ?? {
+                    status: "pending",
+                    works: [],
+                    children: [],
+                    dependencies: [],
+                  }
+                }
+                states={states}
+                focused={displayIndex === focusedIndex}
+                expanded={displayIndex === expandedIndex}
+              />
+            );
+          })}
+        </>
+      ) : (
+        sortedEntries.map((entry, index) => (
+          <TaskRow
+            key={entry.name}
+            name={entry.name}
+            state={
+              states.get(entry.name) ?? {
+                status: "pending",
+                works: [],
+                children: [],
+                dependencies: [],
+              }
             }
-          }
-          focused={index === focusedIndex}
-          expanded={index === expandedIndex}
-        />
-      ))}
+            states={states}
+            focused={index === focusedIndex}
+            expanded={index === expandedIndex}
+          />
+        ))
+      )}
       {hasErrors && allDone && isRawModeSupported ? (
         <Text dimColor>
           <Text bold>↑↓</Text> navigate, <Text bold>Enter/e</Text> expand/collapse,{" "}

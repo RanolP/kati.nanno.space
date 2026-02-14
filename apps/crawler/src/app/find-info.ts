@@ -13,7 +13,7 @@ import {
   witchformProductCollection,
 } from "./models/find-info.ts";
 import { circleDetail } from "../services/illustar/endpoints/circle/[id]/get.ts";
-import { extractTwitterUrls, fetchUserTimeline } from "../services/twitter/index.ts";
+import { extractTwitterUrls, fetchThread, fetchUserTimeline } from "../services/twitter/index.ts";
 import {
   extractWitchformUrls,
   fetchAndParseWitchform,
@@ -22,15 +22,15 @@ import {
 import type { FindInfoCheckpoint } from "./find-info-checkpoint.ts";
 import { loadCheckpoint, saveCheckpoint } from "./find-info-checkpoint.ts";
 import { persist } from "./persist.ts";
+import { loadUserRawTweets, saveUserRawTweets } from "./raw-tweets-io.ts";
 
-const CONCURRENCY = 8;
+const CONCURRENCY = 16;
 
 // Illustar circle applications open ~3 months before event start
 const ILLUSTAR_ACTIVITY_LEAD_MS = 90 * 24 * 60 * 60 * 1000;
 
-// Keywords for filtering tweets
-const MEDIA_KEYWORDS = ["일러스타", "일러페스", "일페"];
-const LINK_KEYWORDS = ["선입금"];
+// Keywords for filtering tweets (unified — any match captures both media and links)
+const KEYWORDS = ["일러스타", "일러페스", "일페", "인포", "안내", "선입금", "부스", "굿즈", "판매"];
 
 interface DateRange {
   start: Date;
@@ -49,11 +49,6 @@ interface CircleInfo {
 const DATA_DIR = resolve(import.meta.dirname!, "../../../../data");
 const FIND_INFO_DIR = join(DATA_DIR, "find-info");
 const CHECKPOINT_PATH = join(FIND_INFO_DIR, ".checkpoint.json");
-
-function tweetMatchesKeywords(text: string, keywords: string[]): boolean {
-  const lower = text.toLowerCase();
-  return keywords.some((kw) => lower.includes(kw));
-}
 
 function isInWindow(date: string | Date, window: DateRange): boolean {
   const d = typeof date === "string" ? new Date(date) : date;
@@ -149,7 +144,17 @@ function fetchGoodsListTask(
   });
 }
 
-// --- Per-circle task: scan Twitter timeline ---
+// --- Per-circle task: scan Twitter timeline with raw tweet persistence ---
+
+const RAW_TWEETS_DIR = join(FIND_INFO_DIR, "raw-tweets");
+
+// 3-day staleness threshold for skipping Twitter fetch
+const RAW_TWEETS_FRESHNESS_MS = 3 * 24 * 60 * 60 * 1000;
+
+function tweetMatchesKeywords(text: string, keywords: string[]): boolean {
+  const lower = text.toLowerCase();
+  return keywords.some((kw) => lower.includes(kw));
+}
 
 function scanTwitterTask(
   circleId: number,
@@ -162,38 +167,76 @@ function scanTwitterTask(
   return task(`scan-twitter-${circleId}`, function* () {
     const { twitterChannel } = yield* TaskContext();
 
-    const scanState = checkpoint.twitter_scans.get(username);
-    const stopBeforeId = scanState?.newest_seen_tweet_id;
-
-    const tweets = yield* work(async ($) => {
-      $.description(`Scanning @${username} timeline`);
-
-      const user = await twitterChannel.enqueue((client) => client.user.details(username));
-      if (!user) return [];
-      const options: { stopBeforeTweetId?: string; afterDate: Date } = {
-        afterDate: window.start,
-      };
-      if (stopBeforeId) {
-        options.stopBeforeTweetId = stopBeforeId;
-      }
-      return await fetchUserTimeline(twitterChannel, user.id, options);
+    // Load cached raw tweets for this user
+    const loaded = yield* work(async ($) => {
+      $.description(`Loading raw tweets for @${username}`);
+      return await loadUserRawTweets(RAW_TWEETS_DIR, username);
     });
+    const rawTweets = loaded.tweets;
 
-    let newestTweetId = stopBeforeId;
+    // Skip fetch if raw tweets were fetched within the freshness window
+    const isFresh =
+      loaded.fetchedAt != undefined &&
+      Date.now() - loaded.fetchedAt.getTime() < RAW_TWEETS_FRESHNESS_MS;
 
-    for (const tweet of tweets) {
-      // Track newest tweet ID
-      if (!newestTweetId || BigInt(tweet.id) > BigInt(newestTweetId)) {
-        newestTweetId = tweet.id;
+    // Fetch new tweets from timeline
+    if (twitterChannel.hasAuth && !isFresh) {
+      const scanState = checkpoint.twitter_scans.get(username);
+      const stopBeforeId = scanState?.newest_seen_tweet_id;
+
+      const tweets = yield* work(async ($) => {
+        $.description(`Scanning @${username} timeline`);
+
+        const user = await twitterChannel.enqueue((client) => client.user.details(username));
+        if (!user) return [];
+        const options: { stopBeforeTweetId?: string; afterDate: Date } = {
+          afterDate: window.start,
+        };
+        if (stopBeforeId) {
+          options.stopBeforeTweetId = stopBeforeId;
+        }
+        return await fetchUserTimeline(twitterChannel, user.id, options);
+      });
+
+      let newestTweetId = stopBeforeId;
+      for (const tweet of tweets) {
+        if (!newestTweetId || BigInt(tweet.id) > BigInt(newestTweetId)) {
+          newestTweetId = tweet.id;
+        }
+        rawTweets.set(tweet.id, {
+          id: tweet.id,
+          fullText: tweet.fullText,
+          createdAt: tweet.createdAt,
+          conversationId: tweet.conversationId,
+          media: tweet.media?.map((m) => ({ url: m.url })),
+          urls: tweet.entities.urls,
+        });
       }
 
-      // Skip tweets outside the event activity window
+      if (newestTweetId) {
+        checkpoint.twitter_scans.set(username, {
+          newest_seen_tweet_id: newestTweetId,
+        });
+      }
+
+      // Save raw tweets to disk
+      yield* work(async ($) => {
+        $.description(`Saving raw tweets for @${username}`);
+        await saveUserRawTweets(RAW_TWEETS_DIR, username, rawTweets);
+      });
+    }
+
+    // Process raw tweets: filter by window + keywords, collect media/links
+    const threadConversationIds = new Set<string>();
+    const collectedTweetIds = new Set<string>();
+
+    for (const tweet of rawTweets.values()) {
       if (!isInWindow(tweet.createdAt, window)) continue;
+      if (!tweetMatchesKeywords(tweet.fullText, KEYWORDS)) continue;
 
       const text = tweet.fullText;
 
-      // Collect media from tweets matching media keywords
-      if (tweetMatchesKeywords(text, MEDIA_KEYWORDS) && tweet.media) {
+      if (tweet.media) {
         for (const media of tweet.media) {
           const key = [circleId, tweet.id, media.url].join("\0");
           mediaResults.set(key, {
@@ -205,30 +248,58 @@ function scanTwitterTask(
             tweeted_at: tweet.createdAt,
           });
         }
+        collectedTweetIds.add(tweet.id);
+
+        if (!checkpoint.threads_fetched.has(tweet.conversationId)) {
+          threadConversationIds.add(tweet.conversationId);
+        }
       }
 
-      // Collect links from tweets matching link keywords
-      if (tweetMatchesKeywords(text, LINK_KEYWORDS)) {
-        for (const url of tweet.entities.urls) {
-          const key = [circleId, tweet.id, url].join("\0");
-          linkResults.set(key, {
-            circle_id: circleId,
-            tweet_id: tweet.id,
-            link_url: url,
-            twitter_username: username,
-            tweet_text: truncateText(text),
-            tweeted_at: tweet.createdAt,
-          });
-        }
+      for (const url of tweet.urls) {
+        const key = [circleId, tweet.id, url].join("\0");
+        linkResults.set(key, {
+          circle_id: circleId,
+          tweet_id: tweet.id,
+          link_url: url,
+          twitter_username: username,
+          tweet_text: truncateText(text),
+          tweeted_at: tweet.createdAt,
+        });
       }
     }
 
-    // Update checkpoint
-    if (newestTweetId) {
-      checkpoint.twitter_scans.set(username, {
-        newest_seen_tweet_id: newestTweetId,
-        scan_completed_at: new Date().toISOString(),
-      });
+    // Fetch threads for media tweets
+    if (twitterChannel.hasAuth && threadConversationIds.size > 0) {
+      const threadTasks = [...threadConversationIds].map((convId) =>
+        task(`fetch-thread-${convId}`, function* () {
+          const threadTweets = yield* work(async ($) => {
+            $.description(`Fetching thread ${convId}`);
+            return await fetchThread(twitterChannel, convId, username);
+          });
+
+          for (const tweet of threadTweets) {
+            if (collectedTweetIds.has(tweet.id)) continue;
+            if (!tweet.media) continue;
+
+            for (const media of tweet.media) {
+              const key = [circleId, tweet.id, media.url].join("\0");
+              mediaResults.set(key, {
+                circle_id: circleId,
+                tweet_id: tweet.id,
+                image_url: media.url,
+                twitter_username: username,
+                tweet_text: truncateText(tweet.fullText),
+                tweeted_at: tweet.createdAt,
+              });
+            }
+          }
+
+          checkpoint.threads_fetched.add(convId);
+          // eslint-disable-next-line unicorn/no-useless-undefined
+          return Ok(undefined);
+        }),
+      );
+      yield* pool(threadTasks, CONCURRENCY);
     }
 
     // eslint-disable-next-line unicorn/no-useless-undefined
@@ -293,7 +364,7 @@ function processCircle(
     // Illustar goods list
     subTasks.push(fetchGoodsListTask(circle.id, goodsImages, checkpoint));
 
-    // Twitter scan
+    // Twitter timeline scan
     const [firstTwitter] = extractTwitterUrls(circle.homepage);
     if (firstTwitter) {
       subTasks.push(

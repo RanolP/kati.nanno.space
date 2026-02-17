@@ -31,6 +31,12 @@ export interface BoothProduct {
 
 export const PIPELINE_VERSION = "0.4.0";
 
+/** Enforce one bounding box per variant (keep the first if multiple are present). */
+export function normalizeVariantImages(images: readonly BBox[]): readonly BBox[] {
+  if (images.length <= 1) return images;
+  return [images[0]!];
+}
+
 /** Derive product-level audit status from variant statuses. */
 export function deriveProductAuditStatus(variants: readonly ProductVariant[]): AuditStatus {
   if (variants.length === 0) return "pending";

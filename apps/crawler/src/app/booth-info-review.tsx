@@ -10,11 +10,11 @@ import sharp from "sharp";
 
 import { Ok, task, work } from "../features/task/index.ts";
 import type { Task, OkType } from "../features/task/index.ts";
-import { boothInfoPaths, readProducts } from "./booth-info-shared.ts";
+import { boothInfoPaths, discoverReviewHash, readProducts } from "./booth-info-shared.ts";
 import { runGeminiExtraction, geminiToProducts } from "./booth-info-analyze.ts";
 import type { ReanalyzeRegion } from "./booth-info-analyze.ts";
 import type { BoothImageMeta } from "./booth-info-shared.ts";
-import { deriveProductAuditStatus } from "./booth-info-types.ts";
+import { deriveProductAuditStatus, normalizeVariantImages } from "./booth-info-types.ts";
 import type { AuditStatus, BBox, BoothProduct, VariantStatus } from "./booth-info-types.ts";
 
 const execFile = promisify(execFileCb);
@@ -49,6 +49,50 @@ function StatusBadge({ status }: { status: AuditStatus }) {
     >
       {status}
     </span>
+  );
+}
+
+function AnalysisPendingPage({
+  hash,
+  idx,
+  error,
+}: {
+  hash: string;
+  idx: number;
+  error: string | undefined;
+}) {
+  return (
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Analyzing image…</title>
+        {!error && <meta http-equiv="refresh" content="2" />}
+        <style>{`
+          body { font-family: system-ui, sans-serif; max-width: 720px; margin: 80px auto; padding: 20px; }
+          .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; }
+          .hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #4b5563; }
+          .err { color: #b91c1c; background: #fee2e2; border-radius: 6px; padding: 10px; }
+          a { color: #2563eb; text-decoration: none; }
+        `}</style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>Analyzing next image…</h2>
+          <p class="hash">{hash.slice(0, 12)}</p>
+          {error ? (
+            <div class="err">
+              <p>Analysis failed:</p>
+              <pre>{error}</pre>
+              <p>
+                <a href={`/review/${hash}/${idx}?retry=1`}>Retry analysis</a>
+              </p>
+            </div>
+          ) : (
+            <p>Please wait, this page will refresh automatically.</p>
+          )}
+        </div>
+      </body>
+    </html>
   );
 }
 
@@ -140,7 +184,9 @@ function ReviewPage({
         </div>
 
         {allDone && (
-          <div class="done-banner">All products reviewed! Server will shut down automatically.</div>
+          <div class="done-banner">
+            All products reviewed! Redirecting to the next image (or shutting down if none left).
+          </div>
         )}
 
         {reanalyzing && (
@@ -156,6 +202,7 @@ function ReviewPage({
                 return v.images.map(([x1, y1, x2, y2], imgIdx) => (
                   <g class={`bbox-group-${vi}`}>
                     <rect
+                      id={`rect-${vi}-${imgIdx}`}
                       x={x1}
                       y={y1}
                       width={x2 - x1}
@@ -165,11 +212,76 @@ function ReviewPage({
                       stroke-width={strokeWidth}
                       opacity="0.8"
                       data-variant-idx={vi}
+                      data-bbox-idx={imgIdx}
+                      data-role="bbox-rect"
+                      style="cursor:move"
                     />
-                    <text x={x1} y={y1 - 5} fill={color} font-size="14" font-weight="bold">
+                    <text
+                      id={`label-${vi}-${imgIdx}`}
+                      x={x1}
+                      y={y1 - 5}
+                      fill={color}
+                      font-size="14"
+                      font-weight="bold"
+                    >
                       {v.name}
-                      {v.images.length > 1 ? ` [${imgIdx}]` : ""}
                     </text>
+                    <rect
+                      id={`handle-${vi}-${imgIdx}-left`}
+                      x={x1 - strokeWidth * 0.8}
+                      y={y1}
+                      width={strokeWidth * 1.6}
+                      height={y2 - y1}
+                      fill={color}
+                      opacity="0.35"
+                      data-variant-idx={vi}
+                      data-bbox-idx={imgIdx}
+                      data-role="bbox-handle"
+                      data-edge="left"
+                      style="cursor:ew-resize"
+                    />
+                    <rect
+                      id={`handle-${vi}-${imgIdx}-right`}
+                      x={x2 - strokeWidth * 0.8}
+                      y={y1}
+                      width={strokeWidth * 1.6}
+                      height={y2 - y1}
+                      fill={color}
+                      opacity="0.35"
+                      data-variant-idx={vi}
+                      data-bbox-idx={imgIdx}
+                      data-role="bbox-handle"
+                      data-edge="right"
+                      style="cursor:ew-resize"
+                    />
+                    <rect
+                      id={`handle-${vi}-${imgIdx}-top`}
+                      x={x1}
+                      y={y1 - strokeWidth * 0.8}
+                      width={x2 - x1}
+                      height={strokeWidth * 1.6}
+                      fill={color}
+                      opacity="0.35"
+                      data-variant-idx={vi}
+                      data-bbox-idx={imgIdx}
+                      data-role="bbox-handle"
+                      data-edge="top"
+                      style="cursor:ns-resize"
+                    />
+                    <rect
+                      id={`handle-${vi}-${imgIdx}-bottom`}
+                      x={x1}
+                      y={y2 - strokeWidth * 0.8}
+                      width={x2 - x1}
+                      height={strokeWidth * 1.6}
+                      fill={color}
+                      opacity="0.35"
+                      data-variant-idx={vi}
+                      data-bbox-idx={imgIdx}
+                      data-role="bbox-handle"
+                      data-edge="bottom"
+                      style="cursor:ns-resize"
+                    />
                   </g>
                 ));
               })}
@@ -204,7 +316,12 @@ function ReviewPage({
                 <div class="variant-block" data-variant-idx={vi}>
                   <div class="variant-row">
                     <div class="variant-swatch" style={`background:${STATUS_COLORS[v.status]}`} />
-                    <span class="variant-name">{v.name}</span>
+                    <input
+                      type="text"
+                      name={`variant_name_${vi}`}
+                      value={v.name}
+                      class="variant-name"
+                    />
                     <span class="variant-imgs">{v.images.length} img</span>
                     <input
                       type="hidden"
@@ -246,7 +363,31 @@ function ReviewPage({
                           id={`be-${vi}-${bi}`}
                           value="0"
                         />
-                        <span class="bbox-label">
+                        <input
+                          type="hidden"
+                          name={`bbox_${vi}_${bi}_x1`}
+                          id={`bx1-${vi}-${bi}`}
+                          value={x1}
+                        />
+                        <input
+                          type="hidden"
+                          name={`bbox_${vi}_${bi}_y1`}
+                          id={`by1-${vi}-${bi}`}
+                          value={y1}
+                        />
+                        <input
+                          type="hidden"
+                          name={`bbox_${vi}_${bi}_x2`}
+                          id={`bx2-${vi}-${bi}`}
+                          value={x2}
+                        />
+                        <input
+                          type="hidden"
+                          name={`bbox_${vi}_${bi}_y2`}
+                          id={`by2-${vi}-${bi}`}
+                          value={y2}
+                        />
+                        <span class="bbox-label" id={`bbox-label-${vi}-${bi}`}>
                           [{x1},{y1},{x2},{y2}]
                         </span>
                         <button
@@ -279,12 +420,21 @@ function ReviewPage({
                 </button>
                 <button
                   type="submit"
-                  name="full_reanalyze"
-                  value="1"
+                  name="full_reanalyze_scope"
+                  value="item"
                   class="btn-submit"
                   style="background:#6366f1"
                 >
-                  Full Re-analyze
+                  Full Re-analyze (This Item)
+                </button>
+                <button
+                  type="submit"
+                  name="full_reanalyze_scope"
+                  value="all"
+                  class="btn-submit"
+                  style="background:#7c3aed"
+                >
+                  Full Re-analyze (All Items)
                 </button>
               </div>
             </form>
@@ -294,6 +444,141 @@ function ReviewPage({
         {raw(`<script>
           var statusColors = ${JSON.stringify(STATUS_COLORS)};
           var variantCount = ${product.variants.length};
+          var imageWidth = ${imgW};
+          var imageHeight = ${imgH};
+          var minBboxSize = 8;
+          var activeDrag = null;
+
+          function getSvg() {
+            return document.querySelector('.image-panel svg');
+          }
+
+          function toSvgPoint(evt) {
+            var svg = getSvg();
+            if (!svg) return { x: 0, y: 0 };
+            var pt = svg.createSVGPoint();
+            pt.x = evt.clientX;
+            pt.y = evt.clientY;
+            var ctm = svg.getScreenCTM();
+            if (!ctm) return { x: 0, y: 0 };
+            var local = pt.matrixTransform(ctm.inverse());
+            return { x: local.x, y: local.y };
+          }
+
+          function readCoord(id, fallback) {
+            var el = document.getElementById(id);
+            if (!el) return fallback;
+            var n = Number(el.value);
+            return Number.isFinite(n) ? n : fallback;
+          }
+
+          function writeCoord(id, value) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.value = String(value);
+          }
+
+          function getBbox(vi, bi) {
+            return {
+              x1: readCoord('bx1-' + vi + '-' + bi, 0),
+              y1: readCoord('by1-' + vi + '-' + bi, 0),
+              x2: readCoord('bx2-' + vi + '-' + bi, 0),
+              y2: readCoord('by2-' + vi + '-' + bi, 0)
+            };
+          }
+
+          function clamp(v, lo, hi) {
+            return Math.max(lo, Math.min(hi, v));
+          }
+
+          function normalizeBbox(x1, y1, x2, y2) {
+            var left = Math.min(x1, x2);
+            var right = Math.max(x1, x2);
+            var top = Math.min(y1, y2);
+            var bottom = Math.max(y1, y2);
+
+            left = clamp(left, 0, imageWidth);
+            right = clamp(right, 0, imageWidth);
+            top = clamp(top, 0, imageHeight);
+            bottom = clamp(bottom, 0, imageHeight);
+
+            if (right - left < minBboxSize) {
+              if (left + minBboxSize <= imageWidth) right = left + minBboxSize;
+              else left = right - minBboxSize;
+            }
+            if (bottom - top < minBboxSize) {
+              if (top + minBboxSize <= imageHeight) bottom = top + minBboxSize;
+              else top = bottom - minBboxSize;
+            }
+
+            return {
+              x1: Math.round(left),
+              y1: Math.round(top),
+              x2: Math.round(right),
+              y2: Math.round(bottom)
+            };
+          }
+
+          function setBbox(vi, bi, x1, y1, x2, y2) {
+            var b = normalizeBbox(x1, y1, x2, y2);
+            writeCoord('bx1-' + vi + '-' + bi, b.x1);
+            writeCoord('by1-' + vi + '-' + bi, b.y1);
+            writeCoord('bx2-' + vi + '-' + bi, b.x2);
+            writeCoord('by2-' + vi + '-' + bi, b.y2);
+            refreshBboxVisual(vi, bi);
+          }
+
+          function refreshBboxVisual(vi, bi) {
+            var b = getBbox(vi, bi);
+            var rect = document.getElementById('rect-' + vi + '-' + bi);
+            if (rect) {
+              rect.setAttribute('x', String(b.x1));
+              rect.setAttribute('y', String(b.y1));
+              rect.setAttribute('width', String(b.x2 - b.x1));
+              rect.setAttribute('height', String(b.y2 - b.y1));
+            }
+
+            var label = document.getElementById('label-' + vi + '-' + bi);
+            if (label) {
+              label.setAttribute('x', String(b.x1));
+              label.setAttribute('y', String(b.y1 - 5));
+            }
+
+            var left = document.getElementById('handle-' + vi + '-' + bi + '-left');
+            if (left) {
+              left.setAttribute('x', String(b.x1 - 2));
+              left.setAttribute('y', String(b.y1));
+              left.setAttribute('width', '4');
+              left.setAttribute('height', String(b.y2 - b.y1));
+            }
+
+            var right = document.getElementById('handle-' + vi + '-' + bi + '-right');
+            if (right) {
+              right.setAttribute('x', String(b.x2 - 2));
+              right.setAttribute('y', String(b.y1));
+              right.setAttribute('width', '4');
+              right.setAttribute('height', String(b.y2 - b.y1));
+            }
+
+            var top = document.getElementById('handle-' + vi + '-' + bi + '-top');
+            if (top) {
+              top.setAttribute('x', String(b.x1));
+              top.setAttribute('y', String(b.y1 - 2));
+              top.setAttribute('width', String(b.x2 - b.x1));
+              top.setAttribute('height', '4');
+            }
+
+            var bottom = document.getElementById('handle-' + vi + '-' + bi + '-bottom');
+            if (bottom) {
+              bottom.setAttribute('x', String(b.x1));
+              bottom.setAttribute('y', String(b.y2 - 2));
+              bottom.setAttribute('width', String(b.x2 - b.x1));
+              bottom.setAttribute('height', '4');
+            }
+
+            var text = document.getElementById('bbox-label-' + vi + '-' + bi);
+            if (text) text.textContent = '[' + b.x1 + ',' + b.y1 + ',' + b.x2 + ',' + b.y2 + ']';
+          }
 
           function toggleVariant(idx, status) {
             var input = document.getElementById('vs-' + idx);
@@ -328,8 +613,10 @@ function ReviewPage({
             bboxes.forEach(function(g) {
               var rect = g.querySelector('rect');
               var text = g.querySelector('text');
+              var handles = g.querySelectorAll('[data-role="bbox-handle"]');
               if (rect) rect.setAttribute('stroke', statusColors[status]);
               if (text) text.setAttribute('fill', statusColors[status]);
+              handles.forEach(function(h) { h.setAttribute('fill', statusColors[status]); });
             });
           }
 
@@ -356,6 +643,71 @@ function ReviewPage({
             }
             btn.textContent = anyRejected ? 'Save & Re-analyze' : 'Save & Next';
           }
+
+          function onDragStart(evt) {
+            var target = evt.target;
+            if (!target) return;
+            var role = target.getAttribute('data-role');
+            if (role !== 'bbox-rect' && role !== 'bbox-handle') return;
+
+            evt.preventDefault();
+            var vi = Number(target.getAttribute('data-variant-idx'));
+            var bi = Number(target.getAttribute('data-bbox-idx'));
+            var mode = role === 'bbox-rect' ? 'move' : 'resize-edge';
+            var edge = target.getAttribute('data-edge') || 'right';
+            var start = toSvgPoint(evt);
+            activeDrag = {
+              vi: vi,
+              bi: bi,
+              mode: mode,
+              edge: edge,
+              startX: start.x,
+              startY: start.y,
+              bbox: getBbox(vi, bi)
+            };
+            window.addEventListener('mousemove', onDragMove);
+            window.addEventListener('mouseup', onDragEnd);
+          }
+
+          function onDragMove(evt) {
+            if (!activeDrag) return;
+            evt.preventDefault();
+            var p = toSvgPoint(evt);
+            var dx = p.x - activeDrag.startX;
+            var dy = p.y - activeDrag.startY;
+            var b = activeDrag.bbox;
+
+            if (activeDrag.mode === 'move') {
+              var w = b.x2 - b.x1;
+              var h = b.y2 - b.y1;
+              var x1 = clamp(b.x1 + dx, 0, imageWidth - w);
+              var y1 = clamp(b.y1 + dy, 0, imageHeight - h);
+              setBbox(activeDrag.vi, activeDrag.bi, x1, y1, x1 + w, y1 + h);
+              return;
+            }
+
+            if (activeDrag.edge === 'left') {
+              setBbox(activeDrag.vi, activeDrag.bi, b.x1 + dx, b.y1, b.x2, b.y2);
+            } else if (activeDrag.edge === 'right') {
+              setBbox(activeDrag.vi, activeDrag.bi, b.x1, b.y1, b.x2 + dx, b.y2);
+            } else if (activeDrag.edge === 'top') {
+              setBbox(activeDrag.vi, activeDrag.bi, b.x1, b.y1 + dy, b.x2, b.y2);
+            } else {
+              setBbox(activeDrag.vi, activeDrag.bi, b.x1, b.y1, b.x2, b.y2 + dy);
+            }
+          }
+
+          function onDragEnd() {
+            activeDrag = null;
+            window.removeEventListener('mousemove', onDragMove);
+            window.removeEventListener('mouseup', onDragEnd);
+          }
+
+          (function initDragResize() {
+            var svg = getSvg();
+            if (!svg) return;
+            svg.addEventListener('mousedown', onDragStart);
+          })();
         </script>`)}
       </body>
     </html>
@@ -368,6 +720,59 @@ async function loadProducts(hash: string): Promise<BoothProduct[] | undefined> {
   } catch {
     return undefined;
   }
+}
+
+const analysisJobs = new Map<string, Promise<void>>();
+const analysisErrors = new Map<string, string>();
+
+async function analyzeHashIfNeeded(hash: string): Promise<void> {
+  const paths = boothInfoPaths(hash);
+  try {
+    await readFile(paths.jsonl);
+    return;
+  } catch {
+    // needs analysis
+  }
+
+  const pngBuf = await readFile(paths.png);
+
+  let meta: BoothImageMeta;
+  try {
+    meta = JSON.parse(await readFile(paths.meta, "utf8")) as BoothImageMeta;
+  } catch {
+    const metadata = await sharp(pngBuf).metadata();
+    meta = {
+      url: "",
+      width: metadata.width!,
+      height: metadata.height!,
+      sha256: hash,
+      confidence: 1,
+      reason: "",
+    };
+  }
+
+  const geminiResult = await runGeminiExtraction(pngBuf);
+  const products = geminiToProducts(geminiResult, hash, meta);
+
+  await mkdir(paths.dir, { recursive: true });
+  const jsonl = `${products.map((p) => JSON.stringify(p)).join("\n")}\n`;
+  await writeFile(paths.jsonl, jsonl, "utf8");
+}
+
+function queueBackgroundAnalysis(hash: string): void {
+  if (analysisJobs.has(hash)) return;
+  analysisErrors.delete(hash);
+  const job = (async () => {
+    try {
+      await analyzeHashIfNeeded(hash);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      analysisErrors.set(hash, msg);
+    } finally {
+      analysisJobs.delete(hash);
+    }
+  })();
+  analysisJobs.set(hash, job);
 }
 
 function writeProducts(hash: string, products: BoothProduct[]): Promise<void> {
@@ -390,14 +795,24 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
   return new Promise((resolve) => {
     const app = new Hono();
 
-    app.get("/", (c) => c.redirect(`/review/${hash}/0`));
+    app.get("/", async (c) => {
+      const nextHash = await discoverReviewHash();
+      if (nextHash) queueBackgroundAnalysis(nextHash);
+      return c.redirect(`/review/${nextHash ?? hash}/0`);
+    });
     app.get("/review/:hash", (c) => c.redirect(`/review/${c.req.param("hash")}/0`));
 
     app.get("/review/:hash/:index", async (c) => {
       const reqHash = c.req.param("hash");
       const idx = Number(c.req.param("index"));
+      if (c.req.query("retry") === "1") queueBackgroundAnalysis(reqHash);
       const products = await loadProducts(reqHash);
-      if (!products) return c.text("Analysis not found", 404);
+      if (!products) {
+        queueBackgroundAnalysis(reqHash);
+        return c.html(
+          <AnalysisPendingPage hash={reqHash} idx={idx} error={analysisErrors.get(reqHash)} />,
+        );
+      }
       if (idx < 0 || idx >= products.length) return c.redirect(`/review/${reqHash}/0`);
       const reanalyzing = c.req.query("reanalyzed") === "1";
       return c.html(
@@ -409,7 +824,10 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
       const reqHash = c.req.param("hash");
       const idx = Number(c.req.param("index"));
       let products = await loadProducts(reqHash);
-      if (!products) return c.text("Analysis not found", 404);
+      if (!products) {
+        queueBackgroundAnalysis(reqHash);
+        return c.redirect(`/review/${reqHash}/${idx}`);
+      }
 
       const body = await c.req.parseBody();
       const name = String(body["name"] ?? products[idx]!.name);
@@ -421,24 +839,70 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
       const product = products[idx]!;
 
       const guide = String(body["reanalyze_guide"] ?? "") || undefined;
-      const fullReanalyze = String(body["full_reanalyze"] ?? "") === "1";
+      const fullReanalyzeScopeRaw = String(body["full_reanalyze_scope"] ?? "");
+      const fullReanalyzeScope: "none" | "item" | "all" =
+        fullReanalyzeScopeRaw === "item" || fullReanalyzeScopeRaw === "all"
+          ? fullReanalyzeScopeRaw
+          : "none";
+      const fullReanalyze = fullReanalyzeScope !== "none";
 
       // Parse variant statuses and bbox exclusions
       const parsedVariants: { name: string; images: BBox[]; status: VariantStatus }[] = [];
+      const clamp = (value: number, min: number, max: number) =>
+        Math.max(min, Math.min(max, value));
+      const minBoxSize = 8;
       for (let vi = 0; vi < product.variants.length; vi++) {
         const v = product.variants[vi]!;
+        const nameStr = String(body[`variant_name_${vi}`] ?? v.name).trim();
+        const variantName = nameStr.length > 0 ? nameStr : v.name;
         const statusStr = String(body[`variant_status_${vi}`] ?? v.status);
         const status: VariantStatus =
           statusStr === "approved" || statusStr === "rejected" || statusStr === "excluded"
             ? statusStr
             : "pending";
 
-        // Filter out excluded bboxes
-        const images: BBox[] = v.images.filter(
-          (_, bi) => String(body[`bbox_exclude_${vi}_${bi}`] ?? "0") !== "1",
-        );
+        // Filter out excluded bboxes and apply drag-resized coordinates
+        const images: BBox[] = [];
+        for (let bi = 0; bi < Math.min(1, v.images.length); bi++) {
+          if (String(body[`bbox_exclude_${vi}_${bi}`] ?? "0") === "1") continue;
+          const [ox1, oy1, ox2, oy2] = v.images[bi]!;
+          const rx1 = Number(body[`bbox_${vi}_${bi}_x1`] ?? ox1);
+          const ry1 = Number(body[`bbox_${vi}_${bi}_y1`] ?? oy1);
+          const rx2 = Number(body[`bbox_${vi}_${bi}_x2`] ?? ox2);
+          const ry2 = Number(body[`bbox_${vi}_${bi}_y2`] ?? oy2);
 
-        parsedVariants.push({ name: v.name, images, status });
+          let x1 = Number.isFinite(rx1) ? rx1 : ox1;
+          let y1 = Number.isFinite(ry1) ? ry1 : oy1;
+          let x2 = Number.isFinite(rx2) ? rx2 : ox2;
+          let y2 = Number.isFinite(ry2) ? ry2 : oy2;
+
+          const left = Math.min(x1, x2);
+          const right = Math.max(x1, x2);
+          const top = Math.min(y1, y2);
+          const bottom = Math.max(y1, y2);
+
+          x1 = clamp(left, 0, product.image_width);
+          x2 = clamp(right, 0, product.image_width);
+          y1 = clamp(top, 0, product.image_height);
+          y2 = clamp(bottom, 0, product.image_height);
+
+          if (x2 - x1 < minBoxSize) {
+            x2 = clamp(x1 + minBoxSize, 0, product.image_width);
+            x1 = clamp(x2 - minBoxSize, 0, product.image_width);
+          }
+          if (y2 - y1 < minBoxSize) {
+            y2 = clamp(y1 + minBoxSize, 0, product.image_height);
+            y1 = clamp(y2 - minBoxSize, 0, product.image_height);
+          }
+
+          images.push([Math.round(x1), Math.round(y1), Math.round(x2), Math.round(y2)]);
+        }
+
+        parsedVariants.push({
+          name: variantName,
+          images: [...normalizeVariantImages(images)],
+          status,
+        });
       }
 
       // Drop excluded variants entirely
@@ -457,25 +921,112 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
           meta = JSON.parse(await readFile(paths.meta, "utf8")) as BoothImageMeta;
         } catch {
           const metadata = await sharp(pngBuf).metadata();
-          meta = { url: "", width: metadata.width!, height: metadata.height!, sha256: reqHash };
+          meta = {
+            url: "",
+            width: metadata.width!,
+            height: metadata.height!,
+            sha256: reqHash,
+            confidence: 1,
+            reason: "",
+          };
         }
 
-        // Collect rejected variant bboxes (empty for full re-analyze)
-        const reanalyzeRegions: ReanalyzeRegion[] = fullReanalyze
-          ? []
-          : updatedVariants
-              .filter((v) => v.status === "rejected")
-              .map((v) => ({ bboxes: v.images }));
+        // Collect re-analysis regions:
+        // - normal re-analyze: rejected variants only
+        // - full re-analyze (item): current item's area only
+        // - full re-analyze (all): whole image (no region constraints)
+        const currentItemBboxes = updatedVariants.flatMap((v) => v.images);
+        const reanalyzeRegions: ReanalyzeRegion[] =
+          fullReanalyzeScope === "all"
+            ? []
+            : fullReanalyzeScope === "item"
+              ? currentItemBboxes.length > 0
+                ? [{ bboxes: currentItemBboxes }]
+                : []
+              : updatedVariants
+                  .filter((v) => v.status === "rejected")
+                  .map((v) => ({ bboxes: v.images }));
 
         // Run re-extraction
         const geminiResult = await runGeminiExtraction(pngBuf, reanalyzeRegions, guide);
         const newProducts = geminiToProducts(geminiResult, reqHash, meta);
 
+        // Full re-analyze (all items): replace every item with new extraction.
+        if (fullReanalyzeScope === "all") {
+          products = newProducts;
+          await writeProducts(reqHash, products);
+          const nextIndex = products.length > 0 ? Math.min(idx, products.length - 1) : 0;
+          return c.redirect(`/review/${reqHash}/${nextIndex}?reanalyzed=1`);
+        }
+
+        // Full re-analyze (this item): re-analyze only this item's group region and replace this item.
+        if (fullReanalyzeScope === "item") {
+          const targetBoxes = currentItemBboxes;
+          const target = (() => {
+            if (targetBoxes.length === 0) return undefined;
+            const xs1 = targetBoxes.map((b) => b[0]);
+            const ys1 = targetBoxes.map((b) => b[1]);
+            const xs2 = targetBoxes.map((b) => b[2]);
+            const ys2 = targetBoxes.map((b) => b[3]);
+            return [
+              Math.min(...xs1),
+              Math.min(...ys1),
+              Math.max(...xs2),
+              Math.max(...ys2),
+            ] as const;
+          })();
+
+          const intersectionArea = (
+            a: readonly [number, number, number, number],
+            b: readonly [number, number, number, number],
+          ) => {
+            const x1 = Math.max(a[0], b[0]);
+            const y1 = Math.max(a[1], b[1]);
+            const x2 = Math.min(a[2], b[2]);
+            const y2 = Math.min(a[3], b[3]);
+            return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+          };
+
+          const extracted =
+            target == undefined
+              ? newProducts[0]
+              : [...newProducts]
+                  .map((p) => {
+                    const pb = p.variants.flatMap((v) => v.images);
+                    if (pb.length === 0) return { p, score: -1 };
+                    const ps: readonly [number, number, number, number] = [
+                      Math.min(...pb.map((b) => b[0])),
+                      Math.min(...pb.map((b) => b[1])),
+                      Math.max(...pb.map((b) => b[2])),
+                      Math.max(...pb.map((b) => b[3])),
+                    ];
+                    return { p, score: intersectionArea(target, ps) };
+                  })
+                  .sort((a, b) => b.score - a.score)[0]?.p;
+
+          if (extracted) {
+            const nextAuditStatus = deriveProductAuditStatus(extracted.variants);
+            products = products.map((p, i) => {
+              if (i !== idx) return p;
+              return {
+                ...p,
+                name: extracted.name,
+                price: extracted.price,
+                price_raw: extracted.price_raw,
+                variants: extracted.variants,
+                auditor,
+                audit_status: nextAuditStatus,
+                audit_timestamp: new Date().toISOString(),
+              };
+            });
+            await writeProducts(reqHash, products);
+          }
+          return c.redirect(`/review/${reqHash}/${idx}?reanalyzed=1`);
+        }
+
         // Merge: keep approved variants, replace rest with new results
         const newVariants = newProducts.flatMap((p) => p.variants);
-        const approvedVariants = fullReanalyze
-          ? []
-          : updatedVariants.filter((v) => v.status === "approved");
+        const approvedVariants = updatedVariants.filter((v) => v.status === "approved");
         const mergedVariants = [...approvedVariants, ...newVariants];
 
         const mergedAuditStatus = deriveProductAuditStatus(mergedVariants);
@@ -519,6 +1070,11 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
 
       // Check if all products are fully approved
       if (products.every((p) => p.variants.every((v) => v.status === "approved"))) {
+        const nextHash = await discoverReviewHash();
+        if (nextHash && nextHash !== reqHash) {
+          queueBackgroundAnalysis(nextHash);
+          return c.redirect(`/review/${nextHash}/0`);
+        }
         setTimeout(() => {
           server.close();
           resolve(products);
@@ -578,37 +1134,8 @@ export function boothInfoReview(hash: string): Task<BoothProduct[]> {
   return task("booth-info/review", function* () {
     // Auto-analyze if JSONL doesn't exist yet
     yield* work(async ($) => {
-      const paths = boothInfoPaths(hash);
-      let needsAnalysis = false;
-      try {
-        await readFile(paths.jsonl);
-      } catch {
-        needsAnalysis = true;
-      }
-
-      if (!needsAnalysis) return;
-
-      $.description(`Reading image and metadata — ${hash.slice(0, 12)}…`);
-      const pngBuf = await readFile(paths.png);
-
-      let meta: BoothImageMeta;
-      try {
-        meta = JSON.parse(await readFile(paths.meta, "utf8")) as BoothImageMeta;
-      } catch {
-        const metadata = await sharp(pngBuf).metadata();
-        meta = { url: "", width: metadata.width!, height: metadata.height!, sha256: hash };
-      }
-
-      $.description(`Extracting products (Gemini 2.5 Flash) — ${hash.slice(0, 12)}…`);
-      const geminiResult = await runGeminiExtraction(pngBuf);
-      const products = geminiToProducts(geminiResult, hash, meta);
-
-      $.description(
-        `Writing ${products.length} products → ${hash.slice(0, 4)}/${hash.slice(0, 12)}…`,
-      );
-      await mkdir(paths.dir, { recursive: true });
-      const jsonl = `${products.map((p) => JSON.stringify(p)).join("\n")}\n`;
-      await writeFile(paths.jsonl, jsonl, "utf8");
+      $.description(`Preparing analysis — ${hash.slice(0, 12)}…`);
+      await analyzeHashIfNeeded(hash);
     });
 
     const validated = yield* work(async ($) => {

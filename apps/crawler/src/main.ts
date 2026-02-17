@@ -18,27 +18,15 @@ async function runTasks(createTasks: (() => Task<unknown>)[]): Promise<void> {
     return { name: t.name, result: runTask(t, session) };
   });
   await renderTasks(entries);
-  process.exit(0);
 }
-
-const boothInfoCommands = or(
-  command(
-    "fetch",
-    object({ action: constant("fetch" as const), url: argument(string({ metavar: "URL" })) }),
-  ),
-  command(
-    "review",
-    object({
-      action: constant("review" as const),
-      hash: optional(argument(string({ metavar: "HASH" }))),
-    }),
-  ),
-);
 
 const parser = or(
   command(
-    "booth-info",
-    object({ command: constant("booth-info" as const), sub: boothInfoCommands }),
+    "review-info",
+    object({
+      command: constant("review-info" as const),
+      hash: optional(argument(string({ metavar: "HASH" }))),
+    }),
   ),
   command("illustar", object({ command: constant("illustar" as const) })),
   command("find-info", object({ command: constant("find-info" as const) })),
@@ -47,23 +35,46 @@ const parser = or(
 
 const result = run(parser, { help: "both", programName: "pnpm crawl" });
 
-if (result.command === "booth-info") {
-  const { sub } = result;
+if (result.command === "review-info") {
+  const { discoverReviewHash, isReviewEligible, readBoothImageMeta, REVIEW_MIN_CONFIDENCE } =
+    await import("./app/booth-info-shared.ts");
+  const { boothInfoReview } = await import("./app/booth-info-review.tsx");
 
-  if (sub.action === "fetch") {
-    const { boothInfoFetch } = await import("./app/booth-info-fetch.ts");
-    await runTasks([() => boothInfoFetch(sub.url)]);
-  } else {
-    const { discoverReviewHash } = await import("./app/booth-info-shared.ts");
-    const hash = sub.hash ?? (await discoverReviewHash());
-    if (!hash) {
-      console.error("No hash to review. Provide a HASH or fetch an image first.");
-      process.exit(1);
+  const reviewOne = async (hash: string): Promise<boolean> => {
+    if (!(await isReviewEligible(hash))) {
+      const meta = await readBoothImageMeta(hash);
+      const confidence = meta?.confidence ?? 0;
+      console.error(
+        `Hash ${hash.slice(0, 12)} is below confidence threshold (${confidence} < ${REVIEW_MIN_CONFIDENCE}).`,
+      );
+      return false;
     }
     console.log(`Reviewing ${hash.slice(0, 12)}…`);
-    const { boothInfoReview } = await import("./app/booth-info-review.tsx");
     await runTasks([() => boothInfoReview(hash)]);
+    return true;
+  };
+
+  if (result.hash) {
+    if (!(await reviewOne(result.hash))) process.exit(1);
+    process.exit(0);
   }
+
+  let hash = await discoverReviewHash();
+  if (!hash) {
+    console.error(
+      `No eligible hash to review (confidence >= ${REVIEW_MIN_CONFIDENCE}). Provide a HASH or run analyze-info first.`,
+    );
+    process.exit(1);
+  }
+
+  // Keep reviewing sequentially until all eligible hashes are done.
+  while (hash) {
+    if (!(await reviewOne(hash))) process.exit(1);
+    hash = await discoverReviewHash();
+    if (hash) console.log(`Continuing with next hash ${hash.slice(0, 12)}…`);
+  }
+  console.log("No more eligible hashes to review.");
+  process.exit(0);
 } else if (result.command === "illustar") {
   const { illustarTasks } = await import("./app/illustar.ts");
   const { persist } = await import("./app/persist.ts");
@@ -97,6 +108,7 @@ if (result.command === "booth-info") {
   const apiKey = process.env.CRAWLER_TWITTER_API_KEY;
   const twitter = apiKey ? new TwitterChannel({ apiKey }) : undefined;
   await runTasks([() => analyzeInfo(twitter)]);
+  process.exit(0);
 } else {
   const { findInfo } = await import("./app/find-info.ts");
   const { createFetcher } = await import("./services/endpoint.ts");

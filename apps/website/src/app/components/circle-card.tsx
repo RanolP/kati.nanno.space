@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import { ExternalLinkIcon, UserIcon, MapPinIcon, ImageOffIcon } from "lucide-react";
 
 export interface Circle {
@@ -53,8 +54,23 @@ export function rowToCircle(row: Record<string, unknown>): Circle {
     booth_name: String(row.booth_name ?? ""),
   };
 
-  if (typeof row.id === "number") circle.id = row.id;
-  if (typeof row.event_id === "number") circle.event_id = row.event_id;
+  const idRaw = row.id;
+  if (typeof idRaw === "number") {
+    circle.id = idRaw;
+  } else if (typeof idRaw === "bigint") {
+    circle.id = Number(idRaw);
+  } else if (typeof idRaw === "string" && /^\d+$/.test(idRaw)) {
+    circle.id = Number(idRaw);
+  }
+
+  const eventIdRaw = row.event_id;
+  if (typeof eventIdRaw === "number") {
+    circle.event_id = eventIdRaw;
+  } else if (typeof eventIdRaw === "bigint") {
+    circle.event_id = Number(eventIdRaw);
+  } else if (typeof eventIdRaw === "string" && /^\d+$/.test(eventIdRaw)) {
+    circle.event_id = Number(eventIdRaw);
+  }
   if (row.booth_type != null) circle.booth_type = String(row.booth_type);
   if (row.date_type != null) circle.date_type = String(row.date_type);
   if (row.user_nickname != null) circle.user_nickname = String(row.user_nickname);
@@ -74,11 +90,36 @@ export function rowToCircle(row: Record<string, unknown>): Circle {
   return circle;
 }
 
-export function CircleCard({ circle }: { circle: Circle }) {
+export function CircleCard({
+  circle,
+  onSelect,
+}: {
+  circle: Circle;
+  onSelect?: (circle: Circle) => void;
+}) {
   const hasImage = circle.image_info_url && circle.image_info_url.length > 0;
+  const selectable = onSelect != undefined;
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!selectable) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect?.(circle);
+    }
+  };
 
   return (
-    <div className="flex min-w-[400px] max-w-[450px] flex-1 overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md">
+    <div
+      className={`flex min-w-[400px] max-w-[450px] flex-1 overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow ${
+        selectable
+          ? "cursor-pointer hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary"
+          : ""
+      }`}
+      onClick={selectable ? () => onSelect?.(circle) : undefined}
+      onKeyDown={handleKeyDown}
+      role={selectable ? "button" : undefined}
+      tabIndex={selectable ? 0 : undefined}
+    >
       {/* Left: Image or Fallback */}
       <div className="aspect-square w-32 shrink-0 overflow-hidden bg-muted">
         {hasImage ? (
@@ -153,6 +194,7 @@ export function CircleCard({ circle }: { circle: Circle }) {
               target="_blank"
               rel="noopener noreferrer"
               className="ml-auto flex items-center gap-0.5 text-xs text-primary hover:underline"
+              onClick={(event) => event.stopPropagation()}
             >
               <ExternalLinkIcon className="h-3.5 w-3.5" />
             </a>

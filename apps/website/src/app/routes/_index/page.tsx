@@ -1,13 +1,28 @@
-import { lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 
-const Room = lazy(() => import("../../components/room").then((m) => ({ default: m.Room })));
+interface RoomModule {
+  Room: React.ComponentType;
+}
 
 export default function IndexPage() {
-  return (
-    <Suspense
-      fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}
-    >
-      <Room />
-    </Suspense>
-  );
+  const [RoomComponent, setRoomComponent] = useState<React.ComponentType | undefined>(undefined);
+
+  useEffect(() => {
+    let alive = true;
+
+    void import("../../components/room").then((module: RoomModule) => {
+      if (!alive) return;
+      setRoomComponent(() => module.Room);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!RoomComponent) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+
+  return <RoomComponent />;
 }

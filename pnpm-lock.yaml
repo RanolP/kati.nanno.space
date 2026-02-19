@@ -159,6 +159,9 @@ importers:
       react-router:
         specifier: ^7.2.0
         version: 7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-tweet:
+        specifier: ^3.3.0
+        version: 3.3.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -4804,6 +4807,12 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  react-tweet@3.3.0:
+    resolution: {integrity: sha512-gSIG2169ZK7UH6rBzuU+j1xnQbH3IlOTLEkuGrRiJJTMgETik+h+26yHyyVKrLkzwrOaYPk4K3OtEKycqKgNLw==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
 
   react-virtual@2.10.4:
     resolution: {integrity: sha512-Ir6+oPQZTVHfa6+JL9M7cvMILstFZH/H3jqeYeKI4MSUX+rIruVwFC6nGVXw9wqAw8L0Kg2KvfXxI85OvYQdpQ==}
@@ -10645,6 +10654,14 @@ snapshots:
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.11
+
+  react-tweet@3.3.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+    dependencies:
+      '@swc/helpers': 0.5.18
+      clsx: 2.1.1
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      swr: 2.4.0(react@19.2.4)
 
   react-virtual@2.10.4(react@19.2.4):
     dependencies:

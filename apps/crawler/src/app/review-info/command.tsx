@@ -8,14 +8,14 @@ import { Hono } from "hono";
 import { raw } from "hono/html";
 import sharp from "sharp";
 
-import { Ok, task, work } from "../features/task/index.ts";
-import type { Task, OkType } from "../features/task/index.ts";
-import { boothInfoPaths, discoverReviewHash, readProducts } from "./booth-info-shared.ts";
-import { runGeminiExtraction, geminiToProducts } from "./booth-info-analyze.ts";
-import type { ReanalyzeRegion } from "./booth-info-analyze.ts";
-import type { BoothImageMeta } from "./booth-info-shared.ts";
-import { deriveProductAuditStatus, normalizeVariantImages } from "./booth-info-types.ts";
-import type { AuditStatus, BBox, BoothProduct, VariantStatus } from "./booth-info-types.ts";
+import { Ok, task, work } from "../../features/task/index.ts";
+import type { Task, OkType } from "../../features/task/index.ts";
+import { boothInfoPaths, discoverReviewHash, readProducts } from "./shared.ts";
+import { runGeminiExtraction, geminiToProducts } from "./analyze.ts";
+import type { ReanalyzeRegion } from "./analyze.ts";
+import type { BoothImageMeta } from "./shared.ts";
+import { deriveProductAuditStatus, normalizeVariantImages } from "./types.ts";
+import type { AuditStatus, BBox, BoothProduct, VariantStatus } from "./types.ts";
 
 const execFile = promisify(execFileCb);
 
@@ -32,6 +32,51 @@ const AUDIT_COLORS: Record<AuditStatus, string> = {
   rejected: "#ef4444",
   corrected: "#6366f1",
 };
+
+function getItemArea(product: BoothProduct): BBox | undefined {
+  const area = (product as BoothProduct & { area?: unknown }).area;
+  if (!Array.isArray(area) || area.length !== 4) return undefined;
+  const [x1, y1, x2, y2] = area;
+  if (![x1, y1, x2, y2].every((v) => typeof v === "number" && Number.isFinite(v))) {
+    return undefined;
+  }
+  return [x1, y1, x2, y2];
+}
+
+function deriveAreaFromVariants(
+  variants: readonly { readonly images: readonly BBox[] }[],
+): BBox | undefined {
+  const boxes = variants.flatMap((v) => v.images);
+  if (boxes.length === 0) return undefined;
+  return [
+    Math.min(...boxes.map((b) => b[0])),
+    Math.min(...boxes.map((b) => b[1])),
+    Math.max(...boxes.map((b) => b[2])),
+    Math.max(...boxes.map((b) => b[3])),
+  ];
+}
+
+function buildFullImageGridRegions(width: number, height: number): ReanalyzeRegion[] {
+  if (width <= 0 || height <= 0) return [];
+  if (width < 600 || height < 600) {
+    return [{ bboxes: [[0, 0, width, height]] }];
+  }
+
+  const cols = 2;
+  const rows = height >= width ? 3 : 2;
+  const regions: ReanalyzeRegion[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x1 = Math.floor((width * c) / cols);
+      const x2 = Math.floor((width * (c + 1)) / cols);
+      const y1 = Math.floor((height * r) / rows);
+      const y2 = Math.floor((height * (r + 1)) / rows);
+      if (x2 - x1 < 32 || y2 - y1 < 32) continue;
+      regions.push({ bboxes: [[x1, y1, x2, y2]] });
+    }
+  }
+  return regions.length > 0 ? regions : [{ bboxes: [[0, 0, width, height]] }];
+}
 
 async function getGitUser(): Promise<string> {
   try {
@@ -108,6 +153,7 @@ function ReviewPage({
   reanalyzing?: boolean;
 }) {
   const product = products[idx]!;
+  const itemArea = getItemArea(product);
   const { image_width: imgW, image_height: imgH } = product;
   const strokeWidth = Math.min(imgW, imgH) * 0.01;
   const allDone = products.every((p) => p.variants.every((v) => v.status === "approved"));
@@ -155,9 +201,20 @@ function ReviewPage({
           .field-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
           .field-row label { font-weight: 500; min-width: 80px; }
           .field-row input { flex: 1; }
+          .item-area { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:#374151; background:#eff6ff; border:1px solid #bfdbfe; border-radius:4px; padding:2px 8px; margin-left:8px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .global-loading { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.55); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+          .global-loading-card { background: white; border-radius: 10px; padding: 18px 22px; min-width: 320px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); display:flex; align-items:center; gap:12px; font-size:16px; font-weight:600; }
+          .global-loading-spinner { width: 20px; height: 20px; border: 3px solid #bfdbfe; border-top-color: #2563eb; border-radius: 999px; animation: spin 0.9s linear infinite; }
+          @keyframes spin { to { transform: rotate(360deg); } }
         `}</style>
       </head>
       <body>
+        <div id="global-loading" class="global-loading" style="display:none">
+          <div class="global-loading-card">
+            <span class="global-loading-spinner"></span>
+            <span id="global-loading-text">Re-analyzing…</span>
+          </div>
+        </div>
         <div class="nav">
           {idx > 0 && (
             <a class="btn" href={`/review/${hash}/${idx - 1}`}>
@@ -197,6 +254,30 @@ function ReviewPage({
           <div class="image-panel">
             <svg viewBox={`0 0 ${imgW} ${imgH}`} style="width:100%;height:auto">
               <image href={`/image/${hash}`} width={imgW} height={imgH} />
+              {itemArea && (
+                <g>
+                  <rect
+                    x={itemArea[0]}
+                    y={itemArea[1]}
+                    width={itemArea[2] - itemArea[0]}
+                    height={itemArea[3] - itemArea[1]}
+                    fill="none"
+                    stroke="#2563eb"
+                    stroke-width={strokeWidth * 0.6}
+                    stroke-dasharray={`${strokeWidth * 1.6} ${strokeWidth * 1.2}`}
+                    opacity="0.8"
+                  />
+                  <text
+                    x={itemArea[0]}
+                    y={Math.max(itemArea[1] - 5, 12)}
+                    fill="#2563eb"
+                    font-size="14"
+                    font-weight="bold"
+                  >
+                    item area
+                  </text>
+                </g>
+              )}
               {product.variants.flatMap((v, vi) => {
                 const color = STATUS_COLORS[v.status];
                 return v.images.map(([x1, y1, x2, y2], imgIdx) => (
@@ -291,6 +372,11 @@ function ReviewPage({
           <div class="products-panel">
             <h2>
               #{idx} <StatusBadge status={product.audit_status} />
+              {itemArea && (
+                <span class="item-area">
+                  area [{itemArea[0]},{itemArea[1]},{itemArea[2]},{itemArea[3]}]
+                </span>
+              )}
             </h2>
 
             <form method="post" action={`/review/${hash}/${idx}`} id="review-form">
@@ -425,7 +511,7 @@ function ReviewPage({
                   class="btn-submit"
                   style="background:#6366f1"
                 >
-                  Full Re-analyze (This Item)
+                  Re-analyze Current Item (Scoped)
                 </button>
                 <button
                   type="submit"
@@ -434,7 +520,7 @@ function ReviewPage({
                   class="btn-submit"
                   style="background:#7c3aed"
                 >
-                  Full Re-analyze (All Items)
+                  Re-analyze Entire Image (All Items)
                 </button>
               </div>
             </form>
@@ -644,6 +730,14 @@ function ReviewPage({
             btn.textContent = anyRejected ? 'Save & Re-analyze' : 'Save & Next';
           }
 
+          function showGlobalLoading(text) {
+            var overlay = document.getElementById('global-loading');
+            var label = document.getElementById('global-loading-text');
+            if (!overlay) return;
+            if (label && text) label.textContent = text;
+            overlay.style.display = 'flex';
+          }
+
           function onDragStart(evt) {
             var target = evt.target;
             if (!target) return;
@@ -707,6 +801,24 @@ function ReviewPage({
             var svg = getSvg();
             if (!svg) return;
             svg.addEventListener('mousedown', onDragStart);
+          })();
+
+          (function initFullReanalyzeLoading() {
+            var form = document.getElementById('review-form');
+            if (!form) return;
+            form.addEventListener('submit', function(evt) {
+              var submitter = evt.submitter;
+              if (!submitter) return;
+              if (submitter.name !== 'full_reanalyze_scope') return;
+
+              var isAll = submitter.value === 'all';
+              showGlobalLoading(isAll ? 'Re-analyzing entire image…' : 'Re-analyzing current item region…');
+
+              var buttons = form.querySelectorAll('button');
+              buttons.forEach(function(btn) {
+                btn.disabled = true;
+              });
+            });
           })();
         </script>`)}
       </body>
@@ -931,25 +1043,95 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
           };
         }
 
-        // Collect re-analysis regions:
-        // - normal re-analyze: rejected variants only
-        // - full re-analyze (item): current item's area only
-        // - full re-analyze (all): whole image (no region constraints)
         const currentItemBboxes = updatedVariants.flatMap((v) => v.images);
-        const reanalyzeRegions: ReanalyzeRegion[] =
-          fullReanalyzeScope === "all"
-            ? []
-            : fullReanalyzeScope === "item"
-              ? currentItemBboxes.length > 0
-                ? [{ bboxes: currentItemBboxes }]
-                : []
+        let newProducts: BoothProduct[];
+
+        if (fullReanalyzeScope === "item") {
+          // Full re-analyze (this item): crop to this item's region first,
+          // then run normal group detection inside the crop.
+          const target = (() => {
+            if (currentItemBboxes.length === 0) return undefined;
+            const xs1 = currentItemBboxes.map((b) => b[0]);
+            const ys1 = currentItemBboxes.map((b) => b[1]);
+            const xs2 = currentItemBboxes.map((b) => b[2]);
+            const ys2 = currentItemBboxes.map((b) => b[3]);
+            return [
+              Math.min(...xs1),
+              Math.min(...ys1),
+              Math.max(...xs2),
+              Math.max(...ys2),
+            ] as const;
+          })();
+
+          if (target == undefined) {
+            const geminiResult = await runGeminiExtraction(pngBuf, [], guide, {
+              reviewComplexityCheck: true,
+            });
+            newProducts = geminiToProducts(geminiResult, reqHash, meta);
+          } else {
+            const padding = 16;
+            const left = Math.round(clamp(target[0] - padding, 0, meta.width - 1));
+            const top = Math.round(clamp(target[1] - padding, 0, meta.height - 1));
+            const right = Math.round(clamp(target[2] + padding, left + 1, meta.width));
+            const bottom = Math.round(clamp(target[3] + padding, top + 1, meta.height));
+            const cropWidth = Math.max(1, right - left);
+            const cropHeight = Math.max(1, bottom - top);
+
+            const cropBuf = await sharp(pngBuf)
+              .extract({
+                left,
+                top,
+                width: cropWidth,
+                height: cropHeight,
+              })
+              .png()
+              .toBuffer();
+
+            const cropMeta: BoothImageMeta = {
+              ...meta,
+              width: cropWidth,
+              height: cropHeight,
+            };
+
+            const geminiResult = await runGeminiExtraction(cropBuf, [], guide, {
+              reviewComplexityCheck: true,
+            });
+            const croppedProducts = geminiToProducts(geminiResult, reqHash, cropMeta);
+            newProducts = croppedProducts.map((p) => {
+              const toGlobal = ([x1, y1, x2, y2]: BBox): BBox => [
+                Math.round(clamp(x1 + left, 0, meta.width)),
+                Math.round(clamp(y1 + top, 0, meta.height)),
+                Math.round(clamp(x2 + left, 0, meta.width)),
+                Math.round(clamp(y2 + top, 0, meta.height)),
+              ];
+              return {
+                ...p,
+                image_width: meta.width,
+                image_height: meta.height,
+                variants: p.variants.map((v) => ({
+                  ...v,
+                  images: v.images.map(toGlobal),
+                })),
+                ...(p.area ? { area: toGlobal(p.area) } : {}),
+              };
+            });
+          }
+        } else {
+          // Collect re-analysis regions:
+          // - normal re-analyze: rejected variants only
+          // - full re-analyze (all): force full-image grid regions
+          const reanalyzeRegions: ReanalyzeRegion[] =
+            fullReanalyzeScope === "all"
+              ? buildFullImageGridRegions(meta.width, meta.height)
               : updatedVariants
                   .filter((v) => v.status === "rejected")
                   .map((v) => ({ bboxes: v.images }));
 
-        // Run re-extraction
-        const geminiResult = await runGeminiExtraction(pngBuf, reanalyzeRegions, guide);
-        const newProducts = geminiToProducts(geminiResult, reqHash, meta);
+          const geminiResult = await runGeminiExtraction(pngBuf, reanalyzeRegions, guide, {
+            reviewComplexityCheck: true,
+          });
+          newProducts = geminiToProducts(geminiResult, reqHash, meta);
+        }
 
         // Full re-analyze (all items): replace every item with new extraction.
         if (fullReanalyzeScope === "all") {
@@ -1008,6 +1190,7 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
             const nextAuditStatus = deriveProductAuditStatus(extracted.variants);
             products = products.map((p, i) => {
               if (i !== idx) return p;
+              const nextArea = extracted.area ?? deriveAreaFromVariants(extracted.variants);
               return {
                 ...p,
                 name: extracted.name,
@@ -1017,6 +1200,7 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
                 auditor,
                 audit_status: nextAuditStatus,
                 audit_timestamp: new Date().toISOString(),
+                ...(nextArea ? { area: nextArea } : {}),
               };
             });
             await writeProducts(reqHash, products);
@@ -1033,6 +1217,7 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
 
         products = products.map((p, i) => {
           if (i !== idx) return p;
+          const nextArea = deriveAreaFromVariants(mergedVariants);
           return {
             ...p,
             name,
@@ -1042,6 +1227,7 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
             auditor,
             audit_status: mergedAuditStatus,
             audit_timestamp: new Date().toISOString(),
+            ...(nextArea ? { area: nextArea } : {}),
           };
         });
 
@@ -1054,6 +1240,7 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
 
       products = products.map((p, i) => {
         if (i !== idx) return p;
+        const nextArea = deriveAreaFromVariants(updatedVariants);
         return {
           ...p,
           name,
@@ -1063,6 +1250,7 @@ function runValidationServer(hash: string, port = 3001): Promise<BoothProduct[]>
           auditor,
           audit_status: auditStatus,
           audit_timestamp: new Date().toISOString(),
+          ...(nextArea ? { area: nextArea } : {}),
         };
       });
 

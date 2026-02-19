@@ -27,6 +27,7 @@ export interface BoothProduct {
   readonly audit_timestamp: string | null;
   readonly pipeline_version: string;
   readonly created_at: string;
+  readonly area?: BBox;
 }
 
 export const PIPELINE_VERSION = "0.4.0";

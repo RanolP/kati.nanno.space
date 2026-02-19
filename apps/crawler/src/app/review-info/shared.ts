@@ -3,14 +3,14 @@ import { access, readFile, readdir } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { normalizeVariantImages } from "./booth-info-types.ts";
-import type { BoothProduct, ProductVariant } from "./booth-info-types.ts";
+import { normalizeVariantImages } from "./types.ts";
+import type { BoothProduct, ProductVariant } from "./types.ts";
 
 const execFile = promisify(execFileCb);
 
 export const BOOTH_INFO_DATA_DIR = resolve(
   import.meta.dirname!,
-  "../../../../data/booth-info-analysis",
+  "../../../../../data/booth-info-analysis",
 );
 export const REVIEW_MIN_CONFIDENCE = 0.9;
 

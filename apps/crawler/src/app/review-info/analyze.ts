@@ -5,12 +5,12 @@ import { streamObject } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
 
-import { Ok, task, work } from "../features/task/index.ts";
-import type { Task, OkType } from "../features/task/index.ts";
-import { boothInfoPaths } from "./booth-info-shared.ts";
-import type { BoothImageMeta } from "./booth-info-shared.ts";
-import type { BBox, BoothProduct, ProductVariant } from "./booth-info-types.ts";
-import { normalizeVariantImages, PIPELINE_VERSION } from "./booth-info-types.ts";
+import { Ok, task, work } from "../../features/task/index.ts";
+import type { Task, OkType } from "../../features/task/index.ts";
+import { boothInfoPaths } from "./shared.ts";
+import type { BoothImageMeta } from "./shared.ts";
+import type { BBox, BoothProduct, ProductVariant } from "./types.ts";
+import { normalizeVariantImages, PIPELINE_VERSION } from "./types.ts";
 
 // Gemini uses 0-1000 normalized coordinates in [ymin, xmin, ymax, xmax] order.
 // Using the magic field name "box_2d" triggers Gemini's specialized bbox training.
@@ -51,6 +51,19 @@ const groupSchema = z.object({
 });
 
 type GroupResponse = z.infer<typeof groupSchema>;
+const complexitySchema = z.object({
+  complexity: z.enum(["simple", "complex"]),
+  reason: z.string().optional(),
+});
+type GeminiProduct = GeminiResponse["products"][number];
+
+export interface GeminiExtractionResult {
+  readonly products: readonly (GeminiProduct & { readonly area?: BBox })[];
+}
+
+export interface ExtractionOptions {
+  readonly reviewComplexityCheck?: boolean;
+}
 
 const SYSTEM_PROMPT = `You are analyzing an image of a booth selling subcultural merchandise.
 
@@ -86,24 +99,6 @@ const GROUP_PADDING_PX = 16;
 /** Rejected region with its bboxes to re-analyze. */
 export interface ReanalyzeRegion {
   readonly bboxes: readonly BBox[];
-}
-
-function buildReanalyzePrompt(regions: ReanalyzeRegion[], meta: BoothImageMeta): string {
-  const lines = regions.map((r) => {
-    const coords = r.bboxes
-      .map(([x1, y1, x2, y2]) => {
-        const xmin = Math.round((x1 / meta.width) * 1000);
-        const ymin = Math.round((y1 / meta.height) * 1000);
-        const xmax = Math.round((x2 / meta.width) * 1000);
-        const ymax = Math.round((y2 / meta.height) * 1000);
-        return `[${ymin}, ${xmin}, ${ymax}, ${xmax}]`;
-      })
-      .join(", ");
-    return `- Regions ${coords}`;
-  });
-  return `\n\nThe following regions seem too wide or too sparse to capture. Re-analyze and refine them.
-Remember: each variant must end with exactly ONE tight bounding box around a single instance.
-Do not box text/background. If uncertain, omit variant rather than mislocalize.\n${lines.join("\n")}`;
 }
 
 function toPixelBox(
@@ -191,6 +186,50 @@ Find coarse item groups first (clustered product areas/sections), not individual
   );
 }
 
+function buildForcedGridGroups(
+  width: number,
+  height: number,
+): readonly { box_2d: z.infer<typeof box2dSchema> }[] {
+  const cols = width >= height ? 3 : 2;
+  const rows = width >= height ? 2 : 3;
+  const groups: { box_2d: z.infer<typeof box2dSchema> }[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const xmin = Math.round((c / cols) * 1000);
+      const xmax = Math.round(((c + 1) / cols) * 1000);
+      const ymin = Math.round((r / rows) * 1000);
+      const ymax = Math.round(((r + 1) / rows) * 1000);
+      groups.push({ box_2d: { xmin, ymin, xmax, ymax } });
+    }
+  }
+  return groups;
+}
+
+async function classifyImageComplexity(
+  model: ReturnType<ReturnType<typeof createGoogleGenerativeAI>>,
+  pngBuf: Buffer,
+): Promise<"simple" | "complex"> {
+  try {
+    const result = await runStructuredExtraction(
+      model,
+      complexitySchema,
+      `You are a strict classifier for booth info-sheet visual complexity.
+
+Classify as "complex" when dense/heterogeneous layout is likely to benefit from forced region-splitting.
+Examples: many product clusters, multiple panels/sections, crowded text+item blocks, mixed decorative elements around products.
+
+Classify as "simple" when a small number of clearly separated item clusters can be extracted reliably without forced tiling.
+
+Return JSON only.`,
+      "Classify this image as simple or complex for extraction strategy.",
+      pngBuf,
+    );
+    return result.complexity;
+  } catch {
+    return "simple";
+  }
+}
+
 function mapCropProductsToGlobal(
   local: GeminiResponse,
   crop: { left: number; top: number; width: number; height: number },
@@ -228,33 +267,34 @@ export async function runGeminiExtraction(
   pngBuf: Buffer,
   reanalyzeRegions?: ReanalyzeRegion[],
   guide?: string,
-): Promise<GeminiResponse> {
-  const model = createGoogleGenerativeAI({ apiKey: process.env.CRAWLER_AI_KEY_GEMINI! })(
-    "gemini-2.5-flash",
-  );
+  options?: ExtractionOptions,
+): Promise<GeminiExtractionResult> {
+  const google = createGoogleGenerativeAI({ apiKey: process.env.CRAWLER_AI_KEY_GEMINI! });
+  const model = google("gemini-3-flash");
+  const complexityModel = google("gemini-3-flash");
   const metadata = await sharp(pngBuf).metadata();
   const fullWidth = metadata.width ?? 0;
   const fullHeight = metadata.height ?? 0;
   if (fullWidth <= 0 || fullHeight <= 0) return { products: [] };
 
   let systemPrompt = SYSTEM_PROMPT;
-  if (reanalyzeRegions && reanalyzeRegions.length > 0) {
-    const meta: BoothImageMeta = {
-      url: "",
-      width: fullWidth,
-      height: fullHeight,
-      sha256: "",
-      confidence: 1,
-      reason: "",
-    };
-    systemPrompt += buildReanalyzePrompt(reanalyzeRegions, meta);
-  }
   if (guide) systemPrompt += `\n\nAdditional guidance from the reviewer: ${guide}`;
 
   const extractionText =
     "Extract products and variants from this crop. IMPORTANT: exactly one tight bounding box per variant on the correct product instance (not text/background).";
 
   // Stage 1: detect group regions
+  const shouldClassifyComplexity =
+    options?.reviewComplexityCheck === true &&
+    (reanalyzeRegions == undefined || reanalyzeRegions.length === 0);
+  const complexity = shouldClassifyComplexity
+    ? await classifyImageComplexity(complexityModel, pngBuf)
+    : "simple";
+  const forcedGroups =
+    complexity === "complex"
+      ? buildForcedGridGroups(fullWidth, fullHeight).slice(0, MAX_GROUPS)
+      : [];
+
   const detectedGroups: readonly { box_2d: z.infer<typeof box2dSchema> }[] =
     reanalyzeRegions && reanalyzeRegions.length > 0
       ? reanalyzeRegions
@@ -278,7 +318,9 @@ export async function runGeminiExtraction(
             };
           })
           .filter((g) => g != undefined)
-      : (await detectGroups(model, pngBuf)).groups.slice(0, MAX_GROUPS);
+      : forcedGroups.length > 0
+        ? forcedGroups
+        : (await detectGroups(model, pngBuf)).groups.slice(0, MAX_GROUPS);
 
   if (detectedGroups.length === 0) {
     return await runStructuredExtraction(
@@ -291,7 +333,7 @@ export async function runGeminiExtraction(
   }
 
   // Stage 2: analyze each group crop, then map coords back to full image space.
-  const mergedProducts: GeminiResponse["products"] = [];
+  const mergedProducts: (GeminiProduct & { area?: BBox })[] = [];
   for (const g of detectedGroups) {
     const [x1, y1, x2, y2] = toPixelBox(g.box_2d, fullWidth, fullHeight);
     const crop = clampCrop(
@@ -320,7 +362,8 @@ export async function runGeminiExtraction(
       cropBuf,
     );
     const global = mapCropProductsToGlobal(local, crop, { width: fullWidth, height: fullHeight });
-    mergedProducts.push(...global.products);
+    const area: BBox = [x1, y1, x2, y2];
+    mergedProducts.push(...global.products.map((p) => ({ ...p, area })));
   }
 
   return { products: mergedProducts };
@@ -328,43 +371,47 @@ export async function runGeminiExtraction(
 
 /** Convert Gemini response to BoothProduct array. */
 export function geminiToProducts(
-  result: GeminiResponse,
+  result: GeminiExtractionResult,
   hash: string,
   meta: BoothImageMeta,
 ): BoothProduct[] {
   const now = new Date().toISOString();
-  return result.products.map((p, i) => ({
-    image_sha256: hash,
-    image_url: meta.url,
-    image_width: meta.width,
-    image_height: meta.height,
-    product_index: i,
-    name: p.name,
-    price: p.price,
-    price_raw: p.price_raw,
-    variants: p.variants.map(
-      (v): ProductVariant => ({
-        name: v.label,
-        images: normalizeVariantImages(
-          v.box_2d.map(
-            (b): BBox => [
-              Math.round((b.xmin / 1000) * meta.width),
-              Math.round((b.ymin / 1000) * meta.height),
-              Math.round((b.xmax / 1000) * meta.width),
-              Math.round((b.ymax / 1000) * meta.height),
-            ],
+  return result.products.map((p, i) => {
+    const product: BoothProduct = {
+      image_sha256: hash,
+      image_url: meta.url,
+      image_width: meta.width,
+      image_height: meta.height,
+      product_index: i,
+      name: p.name,
+      price: p.price,
+      price_raw: p.price_raw,
+      variants: p.variants.map(
+        (v): ProductVariant => ({
+          name: v.label,
+          images: normalizeVariantImages(
+            v.box_2d.map(
+              (b): BBox => [
+                Math.round((b.xmin / 1000) * meta.width),
+                Math.round((b.ymin / 1000) * meta.height),
+                Math.round((b.xmax / 1000) * meta.width),
+                Math.round((b.ymax / 1000) * meta.height),
+              ],
+            ),
           ),
-        ),
-        status: "pending",
-      }),
-    ),
-    auditor: null,
-    audit_status: "pending" as const,
-    audit_errors: [],
-    audit_timestamp: null,
-    pipeline_version: PIPELINE_VERSION,
-    created_at: now,
-  }));
+          status: "pending",
+        }),
+      ),
+      auditor: null,
+      audit_status: "pending" as const,
+      audit_errors: [],
+      audit_timestamp: null,
+      pipeline_version: PIPELINE_VERSION,
+      created_at: now,
+      ...(p.area ? { area: p.area } : {}),
+    };
+    return product;
+  });
 }
 
 export function boothInfoAnalyze(hash: string): Task<BoothProduct[]> {

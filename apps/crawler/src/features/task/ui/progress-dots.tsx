@@ -38,7 +38,11 @@ export function ProgressDots({
   if (sorted.length <= 16) {
     return (
       <Box gap={1} marginLeft={1}>
-        {sorted.map((d) => statusDot(d.status))}
+        {sorted.map((d, i) => (
+          <React.Fragment key={`dot-${i}-${d.status ?? "pending"}-${d.endedAt ?? "active"}`}>
+            {statusDot(d.status)}
+          </React.Fragment>
+        ))}
       </Box>
     );
   }
@@ -57,7 +61,11 @@ export function ProgressDots({
   return (
     <Box gap={1} marginLeft={1}>
       {parts.length > 0 ? <Text dimColor>{parts.join(", ")}</Text> : undefined}
-      {tail.map((d) => statusDot(d.status))}
+      {tail.map((d, i) => (
+        <React.Fragment key={`tail-dot-${i}-${d.status ?? "pending"}-${d.endedAt ?? "active"}`}>
+          {statusDot(d.status)}
+        </React.Fragment>
+      ))}
     </Box>
   );
 }

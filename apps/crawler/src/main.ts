@@ -31,14 +31,15 @@ const parser = or(
   command("illustar", object({ command: constant("illustar" as const) })),
   command("find-info", object({ command: constant("find-info" as const) })),
   command("analyze-info", object({ command: constant("analyze-info" as const) })),
+  command("extract-relations", object({ command: constant("extract-relations" as const) })),
 );
 
 const result = run(parser, { help: "both", programName: "pnpm crawl" });
 
 if (result.command === "review-info") {
   const { discoverReviewHash, isReviewEligible, readBoothImageMeta, REVIEW_MIN_CONFIDENCE } =
-    await import("./app/booth-info-shared.ts");
-  const { boothInfoReview } = await import("./app/booth-info-review.tsx");
+    await import("./app/review-info/shared.ts");
+  const { boothInfoReview } = await import("./app/review-info/index.ts");
 
   const reviewOne = async (hash: string): Promise<boolean> => {
     if (!(await isReviewEligible(hash))) {
@@ -50,6 +51,7 @@ if (result.command === "review-info") {
       return false;
     }
     console.log(`Reviewing ${hash.slice(0, 12)}…`);
+    console.log(`Review URL (once ready): http://localhost:3001/review/${hash}/0`);
     await runTasks([() => boothInfoReview(hash)]);
     return true;
   };
@@ -103,14 +105,18 @@ if (result.command === "review-info") {
   await renderTasks(entries);
   process.exit(0);
 } else if (result.command === "analyze-info") {
-  const { analyzeInfo } = await import("./app/analyze-info.ts");
+  const { analyzeInfo } = await import("./app/analyze-info/index.ts");
   const { TwitterChannel } = await import("./services/twitter/index.ts");
   const apiKey = process.env.CRAWLER_TWITTER_API_KEY;
   const twitter = apiKey ? new TwitterChannel({ apiKey }) : undefined;
   await runTasks([() => analyzeInfo(twitter)]);
   process.exit(0);
+} else if (result.command === "extract-relations") {
+  const { extractRelations } = await import("./app/extract-relations.ts");
+  await runTasks([() => extractRelations()]);
+  process.exit(0);
 } else {
-  const { findInfo } = await import("./app/find-info.ts");
+  const { findInfo } = await import("./app/find-info/index.ts");
   const { createFetcher } = await import("./services/endpoint.ts");
   const { TwitterChannel } = await import("./services/twitter/index.ts");
 

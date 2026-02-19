@@ -1,28 +1,32 @@
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import type { AnyModel, Infer } from "../features/model/index.ts";
-import { deserialize } from "../features/model/index.ts";
-import { Ok, Skipped, pool, spawn, task, TaskContext, work } from "../features/task/index.ts";
-import type { Task } from "../features/task/index.ts";
-import { circleCollection, ongoingBoothInfoCollection } from "./models/illustar.ts";
+import type { AnyModel, Infer } from "../../features/model/index.ts";
+import { deserialize } from "../../features/model/index.ts";
+import { Ok, Skipped, pool, spawn, task, TaskContext, work } from "../../features/task/index.ts";
+import type { Task } from "../../features/task/index.ts";
+import { circleCollection, ongoingBoothInfoCollection } from "../models/illustar.ts";
 import {
   goodsImageCollection,
   twitterLinkCollection,
   twitterMediaCollection,
   witchformProductCollection,
-} from "./models/find-info.ts";
-import { circleDetail } from "../services/illustar/endpoints/circle/[id]/get.ts";
-import { extractTwitterUrls, fetchThread, fetchSearchResults } from "../services/twitter/index.ts";
+} from "../models/find-info.ts";
+import { circleDetail } from "../../services/illustar/endpoints/circle/[id]/get.ts";
+import {
+  extractTwitterUrls,
+  fetchThread,
+  fetchSearchResults,
+} from "../../services/twitter/index.ts";
 import {
   extractWitchformUrls,
   fetchAndParseWitchform,
   isWitchformUrl,
-} from "../services/witchform/index.ts";
-import type { FindInfoCheckpoint } from "./find-info-checkpoint.ts";
-import { loadCheckpoint, saveCheckpoint } from "./find-info-checkpoint.ts";
-import { persist } from "./persist.ts";
-import { loadUserRawTweets, saveUserRawTweets } from "./raw-tweets-io.ts";
+} from "../../services/witchform/index.ts";
+import type { FindInfoCheckpoint } from "./checkpoint.ts";
+import { loadCheckpoint, saveCheckpoint } from "./checkpoint.ts";
+import { persist } from "../persist.ts";
+import { loadUserRawTweets, saveUserRawTweets } from "../raw-tweets-io.ts";
 
 const CONCURRENCY = 16;
 
@@ -46,7 +50,7 @@ interface CircleInfo {
   window: DateRange;
 }
 
-const DATA_DIR = resolve(import.meta.dirname!, "../../../../data");
+const DATA_DIR = resolve(import.meta.dirname!, "../../../../../data");
 const FIND_INFO_DIR = join(DATA_DIR, "find-info");
 const CHECKPOINT_PATH = join(FIND_INFO_DIR, ".checkpoint.json");
 

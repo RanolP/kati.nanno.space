@@ -4,18 +4,18 @@ import { join, resolve } from "node:path";
 
 import sharp from "sharp";
 
-import { Ok, task, work } from "../features/task/index.ts";
-import type { Task } from "../features/task/index.ts";
-import { classifyImage, formatGeminiError } from "../services/gemini/batch.ts";
-import type { ClassificationRequest } from "../services/gemini/batch.ts";
-import { boothInfoPaths } from "./booth-info-shared.ts";
-import type { BoothImageMeta } from "./booth-info-shared.ts";
-import { loadAnalyzeCheckpoint, saveAnalyzeCheckpoint } from "./analyze-info-checkpoint.ts";
-import { loadUserRawTweets, saveUserRawTweets } from "./raw-tweets-io.ts";
-import type { RawTweetsFile } from "./raw-tweets-io.ts";
-import type { TwitterChannel } from "../services/twitter/index.ts";
+import { Ok, task, work } from "../../features/task/index.ts";
+import type { Task } from "../../features/task/index.ts";
+import { classifyImage, formatGeminiError } from "../../services/gemini/batch.ts";
+import type { ClassificationRequest } from "../../services/gemini/batch.ts";
+import { boothInfoPaths } from "../review-info/shared.ts";
+import type { BoothImageMeta } from "../review-info/shared.ts";
+import { loadAnalyzeCheckpoint, saveAnalyzeCheckpoint } from "./checkpoint.ts";
+import { loadUserRawTweets, saveUserRawTweets } from "../raw-tweets-io.ts";
+import type { RawTweetsFile } from "../raw-tweets-io.ts";
+import type { TwitterChannel } from "../../services/twitter/index.ts";
 
-const DATA_DIR = resolve(import.meta.dirname!, "../../../../data");
+const DATA_DIR = resolve(import.meta.dirname!, "../../../../../data");
 const FIND_INFO_DIR = join(DATA_DIR, "find-info");
 const RAW_TWEETS_DIR = join(FIND_INFO_DIR, "raw-tweets");
 const IMAGE_CACHE_DIR = join(FIND_INFO_DIR, ".image-cache");

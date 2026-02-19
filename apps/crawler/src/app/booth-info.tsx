@@ -14,8 +14,8 @@ import { z } from "zod";
 
 import { Ok, task, work } from "../features/task/index.ts";
 import type { Task, OkType } from "../features/task/index.ts";
-import type { AuditStatus, BoothProduct } from "./booth-info-types.ts";
-import { PIPELINE_VERSION } from "./booth-info-types.ts";
+import type { AuditStatus, BoothProduct } from "./review-info/types.ts";
+import { PIPELINE_VERSION } from "./review-info/types.ts";
 
 const execFile = promisify(execFileCb);
 

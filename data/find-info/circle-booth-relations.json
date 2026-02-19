@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-02-19T17:38:22.400Z",
+  "relation_count": 10,
+  "circles": [
+    {
+      "illustar_circle_id": 16089,
+      "booth_infos": [
+        {
+          "witchform_id": "payform:YH8HXUPVOU",
+          "witchform_urls": [
+            "https://witchform.com/payform/?uuid=YH8HXUPVOU"
+          ],
+          "tweet_ids": [
+            "2006948940466516334"
+          ]
+        }
+      ]
+    },
+    {
+      "illustar_circle_id": 16194,
+      "booth_infos": [
+        {
+          "witchform_id": "payform:F3RDGNX4SJ",
+          "witchform_urls": [
+            "https://witchform.com/payform/F3RDGNX4SJ"
+          ],
+          "tweet_ids": [
+            "2013832364355617058",
+            "2016502255923745093"
+          ]
+        },
+        {
+          "witchform_id": "payform:P4TNYNDUY1",
+          "witchform_urls": [
+            "https://witchform.com/payform/?uuid=P4TNYNDUY1"
+          ],
+          "tweet_ids": [
+            "2012119516952875210",
+            "2016502255923745093"
+          ]
+        }
+      ]
+    },
+    {
+      "illustar_circle_id": 16275,
+      "booth_infos": [
+        {
+          "witchform_id": "payform:F9TVQ7LHBO",
+          "witchform_urls": [
+            "https://witchform.com/payform/?uuid=F9TVQ7LHBO"
+          ],
+          "tweet_ids": [
+            "1996085247755387122"
+          ]
+        },
+        {
+          "witchform_id": "payform:TIEDGQJHWX",
+          "witchform_urls": [
+            "https://witchform.com/payform/?uuid=TIEDGQJHWX"
+          ],
+          "tweet_ids": [
+            "2003384119728963736"
+          ]
+        }
+      ]
+    },
+    {
+      "illustar_circle_id": 16474,
+      "booth_infos": [
+        {
+          "witchform_id": "deposit:978012",
+          "witchform_urls": [
+            "https://witchform.com/deposit_form.php?idx=978012"
+          ],
+          "tweet_ids": [
+            "2018648768732922024"
+          ]
+        }
+      ]
+    },
+    {
+      "illustar_circle_id": 16728,
+      "booth_infos": [
+        {
+          "witchform_id": "deposit:950454",
+          "witchform_urls": [
+            "https://witchform.com/deposit_form.php?idx=950454"
+          ],
+          "tweet_ids": [
+            "1999806559388651579"
+          ]
+        },
+        {
+          "witchform_id": "deposit:957479",
+          "witchform_urls": [
+            "https://witchform.com/deposit_form.php?idx=957479"
+          ],
+          "tweet_ids": [
+            "2004857840352329876"
+          ]
+        },
+        {
+          "witchform_id": "payform:A6ORE5AEBS",
+          "witchform_urls": [
+            "https://witchform.com/payform/?uuid=A6ORE5AEBS",
+            "https://witchform.com/payform/A6ORE5AEBS"
+          ],
+          "tweet_ids": [
+            "2012260513498214660",
+            "2012374319935172661",
+            "2013951091550134317"
+          ]
+        }
+      ]
+    },
+    {
+      "illustar_circle_id": 16934,
+      "booth_infos": [
+        {
+          "witchform_id": "deposit:956338",
+          "witchform_urls": [
+            "https://witchform.com/deposit_form.php?idx=956338"
+          ],
+          "tweet_ids": [
+            "2003989676773068934"
+          ]
+        }
+      ]
+    }
+  ]
+}

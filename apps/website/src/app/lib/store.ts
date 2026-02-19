@@ -40,6 +40,16 @@ export const { roomStore, useRoomStore } = createRoomStore<RoomState>((set, get,
           type: "url",
           url: "/data/illustar/ongoing_booth_info.parquet",
         },
+        {
+          tableName: "booth_info",
+          type: "url",
+          url: "/data/find-info/booth_info.parquet",
+        },
+        {
+          tableName: "circle_booth_info",
+          type: "url",
+          url: "/data/find-info/circle_booth_info.parquet",
+        },
       ],
     },
     layout: {

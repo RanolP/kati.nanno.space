@@ -1,4 +1,4 @@
-import { BoothStatus, BoothType, DateType, GoodsType } from "../../services/illustar/index.ts";
+import { BoothStatus, BoothType, DateType, GoodsType } from "@kati/illustar-api";
 import { collection, composite, nullable, scalar } from "../../features/model/index.ts";
 
 // --- 공용 ---

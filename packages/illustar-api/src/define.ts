@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-import type { Endpoint, EndpointRequest } from "../endpoint.ts";
+import type { Endpoint, EndpointRequest } from "./endpoint.ts";
 import type { IllustarRawResponse } from "./interceptor.ts";
 import { decodeIllustarResponse } from "./interceptor.ts";
 

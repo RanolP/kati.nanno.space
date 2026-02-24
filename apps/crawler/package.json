@@ -15,6 +15,7 @@
     "@ai-sdk/google": "^1.2.0",
     "@google/genai": "^1.0.0",
     "@hono/node-server": "^1.14.0",
+    "@kati/illustar-api": "workspace:*",
     "@optique/core": "^0.9.2",
     "@optique/run": "^0.9.2",
     "ai": "^4.3.0",

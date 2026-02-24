@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=kati
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  restate:
+    image: docker.restate.dev/restatedev/restate:latest
+    container_name: restate
+    ports:
+      - "8080:8080" # ingress
+      - "9070:9070" # admin/ui
+      - "5122:5122" # node
+    volumes:
+      - ./restate_data:/restate-data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["--node-name=restate-1"]
+
+volumes:
+  postgres_data:

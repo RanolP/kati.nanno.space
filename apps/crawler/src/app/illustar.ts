@@ -8,11 +8,13 @@ import {
   ongoingBoothInfoCollection,
   scheduleCollection,
 } from "./models/illustar.ts";
-import { circleList } from "../services/illustar/endpoints/circle/get.ts";
-import { concertList } from "../services/illustar/endpoints/concert/get.ts";
-import { eventList } from "../services/illustar/endpoints/event/list/get.ts";
-import { ongoingBoothInfo } from "../services/illustar/endpoints/main/ongoing-booth-info/get.ts";
-import { schedule } from "../services/illustar/endpoints/main/schedule/get.ts";
+import {
+  circleList,
+  concertList,
+  eventList,
+  ongoingBoothInfo,
+  schedule,
+} from "@kati/illustar-api/endpoints";
 import { toMap } from "../shared/collection.ts";
 
 export const crawlEvents = (): Task<Infer<typeof eventCollection>> =>

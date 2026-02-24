@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-dev
+    network_mode: host
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=kati
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  restate:
+    image: docker.restate.dev/restatedev/restate:latest
+    container_name: restate-dev
+    network_mode: host
+    volumes:
+      - ./restate_data:/restate-data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["--node-name=restate-dev-1"]
+
+  workflows:
+    image: node:24-bookworm
+    container_name: workflows-dev
+    working_dir: /workspace
+    network_mode: host
+    volumes:
+      - ..:/workspace
+      - pnpm_store:/workspace/.pnpm-store
+    env_file:
+      - ../.env.local
+    environment:
+      - NODE_ENV=development
+      - PNPM_HOME=/pnpm
+      - PATH=/pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    depends_on:
+      - postgres
+      - restate
+    command:
+      - bash
+      - -lc
+      - |
+        wget -qO- https://get.pnpm.io/install.sh \
+          | ENV="/root/.bashrc" SHELL="$(which bash)" bash -
+        source /root/.bashrc
+        pnpm --filter @kati/workflows dev
+
+volumes:
+  pnpm_store:
+  postgres_data:

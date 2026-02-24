@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "packages/*"
 
 catalog:
   oxfmt: ^0.28.0

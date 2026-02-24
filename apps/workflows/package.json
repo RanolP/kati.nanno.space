@@ -1,0 +1,36 @@
+{
+  "name": "@kati/workflows",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsdown src/index.ts --watch --sourcemap --on-success \"bash ./scripts/run-dev-runtime.sh\"",
+    "start": "node dist/index.mjs",
+    "build": "tsdown src/index.ts --sourcemap",
+    "check:lint": "oxlint",
+    "check:type": "tsc --noEmit",
+    "check:fmt": "oxfmt --check",
+    "fix:lint": "oxlint --fix",
+    "fix:fmt": "oxfmt"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^1.2.0",
+    "@kati/illustar-api": "workspace:*",
+    "@restatedev/restate-sdk": "^1",
+    "@valibot/to-json-schema": "1.0.0-rc.0",
+    "ai": "^4.3.0",
+    "es-toolkit": "^1.44.0",
+    "kysely": "^0.28.8",
+    "pg": "^8.16.3",
+    "rettiwt-api": "^6.2.0",
+    "sharp": "^0.33.0",
+    "true-myth": "^9.1.0",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "^8.15.5",
+    "tsdown": "^0.20.3",
+    "typescript": "catalog:"
+  }
+}

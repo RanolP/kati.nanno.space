@@ -12,7 +12,8 @@
     "fix:lint": "turbo run fix:lint",
     "fix:fmt": "turbo run fix:fmt",
     "crawl": "dotenv -e .env.local -- pnpm --filter @kati/crawler start",
-    "website": "pnpm --filter @kati/website dev"
+    "website": "pnpm --filter @kati/website dev",
+    "workflows": "pnpm --filter @kati/workflows dev"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.1",

@@ -1,0 +1,34 @@
+{
+  "name": "@kati/illustar-api",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./endpoints": {
+      "types": "./dist/endpoints/index.d.mts",
+      "import": "./dist/endpoints/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts src/endpoints/index.ts --sourcemap",
+    "check:lint": "oxlint",
+    "check:type": "tsc --noEmit",
+    "check:fmt": "oxfmt --check",
+    "fix:lint": "oxlint --fix",
+    "fix:fmt": "oxfmt"
+  },
+  "dependencies": {
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "^0.20.3"
+  }
+}

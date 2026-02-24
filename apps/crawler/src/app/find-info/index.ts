@@ -12,7 +12,7 @@ import {
   twitterMediaCollection,
   witchformProductCollection,
 } from "../models/find-info.ts";
-import { circleDetail } from "../../services/illustar/endpoints/circle/[id]/get.ts";
+import { circleDetail } from "@kati/illustar-api/endpoints";
 import {
   extractTwitterUrls,
   fetchThread,

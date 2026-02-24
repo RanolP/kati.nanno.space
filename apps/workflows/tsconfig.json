@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["src/*"],
+      "@kati/illustar-api": ["../../packages/illustar-api/src/index.ts"],
+      "@kati/illustar-api/endpoints": ["../../packages/illustar-api/src/endpoints/index.ts"]
+    },
+    "types": ["node"]
+  }
+}

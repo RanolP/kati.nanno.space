@@ -3,3 +3,23 @@ duckdb = "latest"
 node = "24.12.0"
 pnpm = "10.26.0"
 uv = "latest"
+
+[tasks."dev:up"]
+description = "Start local infra (dev compose)"
+run = """docker compose -f infras/docker-compose.dev.yml up -d && cat <<'EOF'
+
+✅ Dev services are up
+- Restate ingress:  http://localhost:8080
+- Restate admin/ui: http://localhost:9070
+- Restate node:     localhost:5122
+- Workflows API:    http://localhost:9080
+
+EOF"""
+
+[tasks."dev:down"]
+description = "Stop local infra (dev compose)"
+run = "docker compose -f infras/docker-compose.dev.yml down"
+
+[tasks."dev:logs"]
+description = "Tail local infra logs (dev compose)"
+run = "docker compose -f infras/docker-compose.dev.yml logs -f"

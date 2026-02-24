@@ -14,10 +14,10 @@ services:
   restate:
     image: docker.restate.dev/restatedev/restate:latest
     container_name: restate
-    ports:
-      - "8080:8080" # ingress
-      - "9070:9070" # admin/ui
-      - "5122:5122" # node
+    expose:
+      - "8080" # ingress (internal only)
+      - "9070" # admin/ui (internal only)
+      - "5122" # node (internal only)
     volumes:
       - ./restate_data:/restate-data
     extra_hosts:
